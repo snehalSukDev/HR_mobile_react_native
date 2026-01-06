@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "frappe-hrms",
+    "slug": "frappe-hrms",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "in.techbirdit.frappehrms",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": ""
+    },
+    "extra": {
+      "eas": {
+        "projectId": "61af2af9-574c-48cd-9678-368f5e406bf7"
+      }
+    },
+    "owner": "snehalsukhadeve"
+  }
+}
