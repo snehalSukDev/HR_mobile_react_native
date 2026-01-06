@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { getResourceList, getResource } from "../utils/frappeApi";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 // Helper function to format dates
 // const formatDate = (dateString, format = "long") => {
@@ -255,7 +255,7 @@ const ShiftDetailsScreen = ({
   if (error) {
     return (
       <View style={styles.centered}>
-        <Icon name="error-outline" size={50} color="#dc3545" />
+        <MaterialIcons name="error-outline" size={50} color="#dc3545" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchShiftData}>
           <Text style={styles.retryButtonText}>Try Again</Text>
@@ -273,13 +273,13 @@ const ShiftDetailsScreen = ({
             onPress={() => handleMonthChange(-1)}
             style={styles.navButton}
           >
-            <Icon name="chevron-left" size={28} color="#007bff" />
+            <MaterialIcons name="chevron-left" size={28} color="#007bff" />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleMonthChange(1)}
             style={styles.navButton}
           >
-            <Icon name="chevron-right" size={28} color="#007bff" />
+            <MaterialIcons name="chevron-right" size={28} color="#007bff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -301,7 +301,7 @@ const ShiftDetailsScreen = ({
           }
           ListEmptyComponent={() => (
             <View style={styles.emptyContainer}>
-              <Icon name="calendar-today" size={50} color="#aaa" />
+              <MaterialIcons name="calendar-today" size={50} color="#aaa" />
               <Text style={styles.emptyText}>
                 No shifts assigned for this month.
               </Text>

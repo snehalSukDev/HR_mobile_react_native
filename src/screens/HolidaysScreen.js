@@ -4,7 +4,7 @@ import {
   ScrollView, Button, TouchableOpacity, useWindowDimensions,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { getResourceList, getResource } from '../utils/frappeApi';
 
 const formatDate = (dateString) => {
@@ -149,10 +149,10 @@ const renderList = (data, title) => (
         <Text style={styles.sectionTitle}>Holidays ({currentYear})</Text>
         <View style={styles.navigationButtons}>
           <TouchableOpacity onPress={() => handleYearChange(-1)} style={styles.navButton}>
-            <Icon name="chevron-left" size={24} color="#007bff" />
+            <MaterialIcons name="chevron-left" size={24} color="#007bff" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => handleYearChange(1)} style={styles.navButton}>
-            <Icon name="chevron-right" size={24} color="#007bff" />
+            <MaterialIcons name="chevron-right" size={24} color="#007bff" />
           </TouchableOpacity>
         </View>
       </View>

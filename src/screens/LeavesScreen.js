@@ -11,7 +11,7 @@ import {
   Alert, // For showing more user-friendly error messages
 } from "react-native";
 import { getResource, getResourceList } from "../utils/frappeApi";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
 
 // --- Constants and Utility Functions (Keep as is, they are good!) ---
@@ -244,7 +244,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Icon name="error-outline" size={50} color="#dc3545" />
+        <MaterialIcons name="error-outline" size={50} color="#dc3545" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchLeaveData}>
           <Text style={styles.retryButtonText}>Try Again</Text>
@@ -272,7 +272,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           onPress={() => setShowCalendar(!showCalendar)}
           style={styles.switchButton}
         >
-          <Icon
+          <MaterialIcons
             name={showCalendar ? "grid-on" : "calendar-today"}
             size={18}
             color="#fff"
@@ -317,7 +317,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         <View style={styles.leaveCardsGrid}>
           {leaveBalances.length === 0 ? (
             <View style={styles.noDataContainer}>
-              <Icon name="info-outline" size={40} color="#666" />
+              <MaterialIcons name="info-outline" size={40} color="#666" />
               <Text style={styles.noDataText}>No leave balances found.</Text>
               <Text style={styles.noDataSubText}>
                 Looks like there's no leave allocated to you yet. Pull down to
@@ -339,7 +339,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
                     { backgroundColor: item.color + "22" },
                   ]}
                 >
-                  <Icon name={item.icon} size={28} color={item.color} />
+                  <MaterialIcons name={item.icon} size={28} color={item.color} />
                 </View>
                 <Text style={styles.cardTitle}>{item.type}</Text>
                 <View style={styles.cardStats}>
@@ -375,7 +375,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       </View>
       {leaveApplications.length === 0 ? (
         <View style={styles.noDataContainer}>
-          <Icon name="event-note" size={40} color="#666" />
+          <MaterialIcons name="event-note" size={40} color="#666" />
           <Text style={styles.noDataText}>No recent leave applications.</Text>
           <Text style={styles.noDataSubText}>
             You haven't applied for any leaves recently.
@@ -385,7 +385,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         <View style={styles.leaveApplicationsList}>
           {leaveApplications.map((app, index) => (
             <View key={index} style={styles.applicationItem}>
-              <Icon
+              <MaterialIcons
                 name="event"
                 size={24}
                 color="#6c757d"
@@ -405,7 +405,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
 
       {/* Button to Apply for Leave */}
       <TouchableOpacity style={styles.applyLeaveButton}>
-        <Icon name="add" size={24} color="#fff" />
+        <MaterialIcons name="add" size={24} color="#fff" />
         <Text style={styles.applyLeaveButtonText}>Apply for Leave</Text>
       </TouchableOpacity>
     </ScrollView>

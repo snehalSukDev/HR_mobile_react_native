@@ -13,7 +13,7 @@ import {
   Alert,
 } from "react-native";
 import { getResourceList } from "../utils/frappeApi";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { MaterialIcons } from "@expo/vector-icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -150,7 +150,7 @@ const SalarySlipScreen = ({
                 onPress={() => handleViewSalarySlip(slip.name)}
                 style={styles.iconButton}
               >
-                <Icon name="visibility" size={20} color="#666" />
+                <MaterialIcons name="visibility" size={20} color="#666" />
                 <Text style={styles.iconButtonText}>View</Text>
               </TouchableOpacity>
             </View>
@@ -170,7 +170,7 @@ const SalarySlipScreen = ({
           }
         >
           <Text style={styles.viewAllLinkText}>View All Salary Slips</Text>
-          <Icon name="arrow-right-alt" size={18} color="#007bff" />
+          <MaterialIcons name="arrow-right-alt" size={18} color="#007bff" />
         </TouchableOpacity>
       )}
     </ScrollView>
