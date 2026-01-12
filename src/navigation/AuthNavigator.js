@@ -6,7 +6,7 @@ const Stack = createStackNavigator();
 
 const AuthNavigator = ({ onLoginSuccess }) => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login">
         {(props) => <LoginScreen {...props} onLoginSuccess={onLoginSuccess} />}
       </Stack.Screen>

@@ -1,6 +1,6 @@
 // src/screens/HomeScreen.js
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,21 @@ import {
   TouchableOpacity,
   ScrollView,
   Button,
+  TextInput,
+  ActivityIndicator,
+  Animated,
+  PanResponder,
+  Alert,
+  Linking,
 } from "react-native";
 
-import { fetchEmployeeDetails } from "../utils/frappeApi";
+import {
+  fetchEmployeeDetails,
+  getResourceList,
+  callFrappeMethod,
+  getGeolocation,
+} from "../utils/frappeApi";
+import { format } from "date-fns";
 import {
   Megaphone,
   CheckCircle2,
@@ -18,11 +30,180 @@ import {
   User,
   Clock,
   Wallet,
+  Bell,
+  Briefcase,
+  Mic,
+  Search,
+  Award,
+  FileText,
+  ClipboardList,
+  Gift,
+  Wallet2,
+  Calendar,
 } from "lucide-react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import ProfileAvatar from "../Components/ProfileAvatar";
+import MapView, { Marker } from "react-native-maps";
 export default function HomeScreen({ navigation, currentUserEmail }) {
   const [employeeProfile, setEmployeeProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good Morning!";
+    if (h < 17) return "Good Afternoon!";
+    return "Good Evening!";
+  })();
+  const [punchedIn, setPunchedIn] = useState(false);
+  const [isPunching, setIsPunching] = useState(false);
+  const [pendingLogType, setPendingLogType] = useState(null);
+  const sliderPos = useRef(new Animated.Value(0)).current;
+  const [trackWidth, setTrackWidth] = useState(0);
+  const knobSize = 44;
+  const maxDistance = Math.max(trackWidth - knobSize, 0);
+  const [coords, setCoords] = useState(null);
+
+  const effectivePunchedIn = isPunching ? pendingLogType === "IN" : punchedIn;
+
+  const runCheck = useCallback(
+    async (logType) => {
+      if (!employeeProfile?.name) return false;
+      if (isPunching) return false;
+      setIsPunching(true);
+      setPendingLogType(logType);
+      try {
+        const { latitude, longitude } = await getGeolocation();
+        const doc = {
+          doctype: "Employee Checkin",
+          employee: employeeProfile.name,
+          log_type: logType,
+          time: format(new Date(), "yyyy-MM-dd HH:mm:ss"),
+          latitude,
+          longitude,
+        };
+        await callFrappeMethod("frappe.desk.form.save.savedocs", {
+          doc: JSON.stringify(doc),
+          action: "Save",
+        });
+        Alert.alert("Success", `Checked ${logType}`);
+        fetchCheckins();
+        return true;
+      } catch (e) {
+        Alert.alert("Error", "Check-in failed");
+        return false;
+      } finally {
+        setIsPunching(false);
+        setPendingLogType(null);
+      }
+    },
+    [employeeProfile, fetchCheckins, isPunching]
+  );
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !isPunching,
+        onMoveShouldSetPanResponder: () => !isPunching,
+        onPanResponderMove: (_, gestureState) => {
+          if (isPunching) return;
+          const dx = gestureState.dx;
+          const base = punchedIn ? maxDistance : 0;
+          const target = base + dx;
+          const clamped = Math.max(0, Math.min(maxDistance, target));
+          sliderPos.setValue(clamped);
+        },
+        onPanResponderRelease: async () => {
+          if (isPunching) return;
+          const current = sliderPos.__getValue();
+          const threshold = maxDistance * 0.6;
+          if (!punchedIn) {
+            if (current >= threshold) {
+              Animated.timing(sliderPos, {
+                toValue: maxDistance,
+                duration: 150,
+                useNativeDriver: false,
+              }).start(async () => {
+                const ok = await runCheck("IN");
+                if (ok) {
+                  setPunchedIn(true);
+                } else {
+                  setPunchedIn(false);
+                  Animated.timing(sliderPos, {
+                    toValue: 0,
+                    duration: 150,
+                    useNativeDriver: false,
+                  }).start();
+                }
+              });
+            } else {
+              Animated.timing(sliderPos, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: false,
+              }).start();
+            }
+          } else {
+            if (current <= maxDistance * 0.4) {
+              Animated.timing(sliderPos, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: false,
+              }).start(async () => {
+                const ok = await runCheck("OUT");
+                if (ok) {
+                  setPunchedIn(false);
+                } else {
+                  setPunchedIn(true);
+                  Animated.timing(sliderPos, {
+                    toValue: maxDistance,
+                    duration: 150,
+                    useNativeDriver: false,
+                  }).start();
+                }
+              });
+            } else {
+              Animated.timing(sliderPos, {
+                toValue: maxDistance,
+                duration: 150,
+                useNativeDriver: false,
+              }).start();
+            }
+          }
+        },
+      }),
+    [punchedIn, maxDistance, isPunching, runCheck]
+  );
+
+  const [events, setEvents] = useState({
+    birthdays: [],
+    anniversaries: [],
+    holidays: [],
+  });
+
+  const fetchEvents = useCallback(async () => {
+    if (!employeeProfile?.name) return;
+    try {
+      const data = await callFrappeMethod(
+        "tbui_backend_core.api.events_today",
+        {
+          employee_id: employeeProfile.name,
+        }
+      );
+      const message = data || {};
+      setEvents({
+        birthdays: Array.isArray(message.birthdays) ? message.birthdays : [],
+        anniversaries: Array.isArray(message.work_anniversaries)
+          ? message.work_anniversaries
+          : [],
+        holidays: Array.isArray(message.holidays) ? message.holidays : [],
+      });
+    } catch (err) {
+      console.error("Error fetching events:", err);
+    }
+  }, [employeeProfile]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -38,9 +219,58 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
     }
   }, [currentUserEmail]);
 
+  const [checkins, setCheckins] = useState([]);
+  const fetchCheckins = useCallback(async () => {
+    const data = await getResourceList("Employee Checkin", {
+      filters: JSON.stringify([["time", "Timespan", "today"]]),
+      fields: JSON.stringify(["log_type"]),
+      order_by: "time asc",
+    });
+    setCheckins(data || []);
+  }, []);
+
+  useEffect(() => {
+    fetchCheckins();
+  }, [fetchCheckins]);
+
+  useEffect(() => {
+    if (checkins && checkins.length > 0) {
+      const lastLog = checkins[checkins.length - 1];
+      const isPunchedIn = lastLog.log_type === "IN";
+      setPunchedIn(isPunchedIn);
+    } else {
+      setPunchedIn(false);
+    }
+  }, [checkins]);
+
+  useEffect(() => {
+    if (trackWidth > 0) {
+      if (punchedIn) {
+        sliderPos.setValue(maxDistance);
+      } else {
+        sliderPos.setValue(0);
+      }
+    }
+  }, [punchedIn, maxDistance, trackWidth]);
+
+  const lastLog = checkins?.[checkins.length - 1];
+  const shouldShowCheckIn = !lastLog || lastLog.log_type === "OUT";
+
+  const handleCheck = runCheck;
+
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const pos = await getGeolocation();
+        setCoords(pos);
+      } catch (e) {
+        // ignore location failures
+      }
+    })();
+  }, []);
 
   if (!employeeProfile) {
     return (
@@ -53,71 +283,230 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.greeting}>Hi, {employeeProfile.employee_name}</Text>
-
-      {/* Top cards */}
-      <View style={styles.cardRow}>
-        <View style={[styles.card, { backgroundColor: "#FDE2E1" }]}>
-          <Megaphone size={20} />
-          <Text style={styles.cardLabel}>Broadcast</Text>
-          <View style={styles.cardBadge}>
-            <Text style={styles.badgeText}>1</Text>
+      <View style={styles.headerCard}>
+        <View style={styles.headerTop}>
+          <ProfileAvatar
+            imagePath={employeeProfile.image}
+            employeeName={employeeProfile.employee_name}
+            size={60}
+          />
+          <View style={styles.headerTextGroup}>
+            <Text style={styles.headerGreeting}>{greeting}</Text>
+            <Text style={styles.headerName}>
+              Mr. {employeeProfile.employee_name}
+            </Text>
+            <Text style={styles.headerSub}>
+              Last swipe: {new Date().toLocaleDateString()}
+            </Text>
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: "#EDF4FE" }]}>
-          <CheckCircle2 size={20} />
-          <Text style={styles.cardLabel}>Approval</Text>
-          <View style={styles.cardBadge}>
-            <Text style={styles.badgeText}>3</Text>
+        {/* Location card */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <MaterialIcons name="location-on" size={18} color="#271085" />
+            <Text style={styles.sectionTitle}>My Location</Text>
+          </View>
+          <View style={styles.sectionBody}>
+            {coords ? (
+              <>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: coords.latitude,
+                      longitude: coords.longitude,
+                    }}
+                    title="You are here"
+                  />
+                </MapView>
+              </>
+            ) : (
+              <Text style={styles.sectionText}>Fetching location...</Text>
+            )}
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: "#E5F9F2" }]}>
-          <BarChart3 size={20} />
-          <Text style={styles.cardLabel}>Poll</Text>
-          <View style={styles.cardBadge}>
-            <Text style={styles.badgeText}>4</Text>
-          </View>
+        <View
+          style={[
+            styles.slideTrack,
+            effectivePunchedIn
+              ? {
+                  backgroundColor: "#ffecec", // light red bg (Punch Out)
+                  borderColor: "#EA4335", // red border
+                }
+              : {
+                  backgroundColor: "#e8fff0", // light green bg (Punch In)
+                  borderColor: "#34A853", // green border
+                },
+          ]}
+          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        >
+          {isPunching ? (
+            <View style={styles.slideCenter}>
+              <ActivityIndicator
+                size="small"
+                color={effectivePunchedIn ? "#EA4335" : "#34A853"}
+              />
+              <Text
+                style={[
+                  styles.slideLoadingText,
+                  { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
+                ]}
+              >
+                {pendingLogType === "OUT"
+                  ? "Punching Out..."
+                  : "Punching In..."}
+              </Text>
+            </View>
+          ) : (
+            <Text
+              style={[
+                styles.slideText,
+                { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
+              ]}
+            >
+              {effectivePunchedIn
+                ? "Slide back to Punch Out"
+                : "Slide to Punch In"}
+            </Text>
+          )}
+
+          <Animated.View
+            style={[
+              styles.slideKnob,
+              {
+                width: knobSize,
+                height: knobSize,
+                transform: [{ translateX: sliderPos }],
+                backgroundColor: effectivePunchedIn ? "#EA4335" : "#34A853",
+                opacity: isPunching ? 0.7 : 1,
+              },
+            ]}
+            {...panResponder.panHandlers}
+          >
+            <MaterialIcons
+              name={effectivePunchedIn ? "logout" : "login"}
+              size={22}
+              color="#fff"
+              style={{
+                transform: effectivePunchedIn
+                  ? [{ scaleX: -1 }] // 🔁 mirror ONLY for Punch Out
+                  : [{ scaleX: 1 }], // ➡️ normal for Punch In
+              }}
+            />
+          </Animated.View>
+        </View>
+
+        <View style={styles.quickDividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.quickTitle}>Quick Actions</Text>
+          <View style={styles.dividerLine} />
+        </View>
+        <View style={styles.quickIconRow}>
+          <TouchableOpacity
+            style={styles.quickIconItem}
+            onPress={() => navigation.navigate("Expense Claim")}
+          >
+            <View style={styles.quickIconCircle}>
+              <Wallet2 size={22} color="#fff" />
+            </View>
+            <Text style={styles.quickIconLabel}>Expense Claim</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickIconItem}
+            onPress={() => navigation.navigate("Shift Roaster")}
+          >
+            <View style={styles.quickIconCircle}>
+              <FileText size={22} color="#fff" />
+            </View>
+            <Text style={styles.quickIconLabel}>Shift Roaster</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickIconItem}
+            onPress={() => navigation.navigate("Attendance")}
+          >
+            <View style={styles.quickIconCircle}>
+              <Clock size={22} color="#fff" />
+            </View>
+            <Text style={styles.quickIconLabel}>Attendance</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickIconItem}
+            onPress={() => navigation.navigate("Survey")}
+          >
+            <View style={styles.quickIconCircle}>
+              <ClipboardList size={22} color="#fff" />
+            </View>
+            <Text style={styles.quickIconLabel}>Survey</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Hard‑coded Quick Menu */}
-      <Text style={styles.quickHeading}>Quick Filter</Text>
-      <View style={styles.quickMenuRow}>
-        <TouchableOpacity
-          style={styles.quickItem}
-          onPress={() => navigation.navigate("Info")}
-        >
-          <User size={20} />
-          <Text style={styles.quickLabel}>My Info</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickItem}
-          onPress={() => navigation.navigate("Attendance")}
-        >
-          <Clock size={20} />
-          <Text style={styles.quickLabel}>Attendance</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickItem}
-          onPress={() => navigation.navigate("Expense Claim")}
-        >
-          <Wallet size={20} />
-          <Text style={styles.quickLabel}>Expense Claim</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickItem}
-          onPress={() => navigation.navigate("Approvals")}
-        >
-          <Wallet size={20} />
-          <Text style={styles.quickLabel}>Approvals</Text>
-        </TouchableOpacity>
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeaderRow}>
+          <Gift size={18} color="#271085" />
+          <Text style={styles.sectionTitle}>Birthday Reminder</Text>
+        </View>
+        <View style={styles.sectionBody}>
+          {events.birthdays.length > 0 ? (
+            events.birthdays.map((b, i) => (
+              <Text key={i} style={styles.sectionText}>
+                {typeof b === "object" ? b.employee_name : b}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.sectionText}>No upcoming birthdays.</Text>
+          )}
+        </View>
       </View>
 
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeaderRow}>
+          <Award size={18} color="#271085" />
+          <Text style={styles.sectionTitle}>Work Anniversaries</Text>
+        </View>
+        <View style={styles.sectionBody}>
+          {events.anniversaries.length > 0 ? (
+            events.anniversaries.map((a, i) => (
+              <Text key={i} style={styles.sectionText}>
+                {typeof a === "object" ? a.employee_name : a}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.sectionText}>No upcoming anniversaries.</Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeaderRow}>
+          <Calendar size={18} color="#271085" />
+          <Text style={styles.sectionTitle}>Holidays</Text>
+        </View>
+        <View style={styles.sectionBody}>
+          {events.holidays.length > 0 ? (
+            events.holidays.map((h, i) => (
+              <Text key={i} style={styles.sectionText}>
+                {typeof h === "object"
+                  ? `${h.description?.replace(/<[^>]+>/g, "").trim()} (${
+                      h.holiday_date
+                    })`
+                  : h}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.sectionText}>No upcoming holidays.</Text>
+          )}
+        </View>
+      </View>
       {/* ... other sections ... */}
     </ScrollView>
   );
@@ -125,7 +514,110 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  greeting: { fontSize: 22, fontWeight: "600", marginBottom: 16 },
+  headerCard: {
+    backgroundColor: "#213465",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  headerTextGroup: { flexDirection: "column", marginLeft: 12, flex: 1 },
+  headerGreeting: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  headerName: { color: "#fff", fontSize: 16, fontWeight: "600", marginTop: 2 },
+  headerSub: { color: "#e6e6e6", fontSize: 12, marginTop: 2 },
+  slideTrack: {
+    position: "relative",
+    height: 52,
+    backgroundColor: "#fff",
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    justifyContent: "center",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  slideText: {
+    position: "absolute",
+    width: "100%",
+    textAlign: "center",
+    color: "#666",
+    fontWeight: "600",
+  },
+  slideCenter: {
+    position: "absolute",
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  slideLoadingText: {
+    color: "#666",
+    fontWeight: "600",
+  },
+  slideKnob: {
+    position: "absolute",
+    left: 0,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  map: {
+    height: 180,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  mapButton: {
+    marginTop: 10,
+    backgroundColor: "#271085",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  mapButtonText: { color: "#fff", fontWeight: "600" },
+  searchRow: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  searchInput: { flex: 1, color: "#333", fontSize: 14 },
+  quickDividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#ffffff55" },
+  quickTitle: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+    marginHorizontal: 8,
+  },
+  quickIconRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  quickIconItem: { alignItems: "center", flex: 1 },
+  quickIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#5b4ed6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  quickIconLabel: { color: "#fff", fontSize: 12 },
 
   cardRow: {
     flexDirection: "row",
@@ -150,27 +642,6 @@ const styles = StyleSheet.create({
     right: 8,
   },
   badgeText: { color: "white", fontSize: 12 },
-  quickHeading: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#333",
-  },
-  quickMenuRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 20,
-  },
-  quickItem: {
-    alignItems: "center",
-    width: 80,
-  },
-  quickLabel: {
-    marginTop: 4,
-    fontSize: 12,
-    textAlign: "center",
-  },
-
   centered: {
     flex: 1,
     justifyContent: "center",
@@ -180,4 +651,21 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 10,
   },
+  sectionCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#e9ecef",
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#271085" },
+  sectionBody: { gap: 6 },
+  sectionText: { fontSize: 13, color: "#333" },
 });

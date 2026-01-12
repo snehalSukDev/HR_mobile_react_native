@@ -17,7 +17,6 @@
     },
     "android": {
       "package": "in.techbirdit.frappehrms",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "",
         "backgroundColor": "#ffffff"

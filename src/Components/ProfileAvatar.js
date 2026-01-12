@@ -1,85 +1,119 @@
 // src/components/ProfileAvatar.js
-import React, { useState, useEffect } from "react";
-import { Image, View, ActivityIndicator, StyleSheet } from "react-native";
-// import { API_HOST } from "@/config";
+import React, { useEffect, useState } from "react";
+import { Image, View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { getFrappeBaseUrl } from "../utils/frappeApi";
 
-const ProfileAvatar = ({ imagePath, employeeName, size = 100 }) => {
-  const API_HOST = "https://glsdemo.techbirdit.in";
+const getInitials = (name = "") => {
+  if (!name) return "?";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+};
 
-  const [uri, setUri] = useState();
+const ProfileAvatar = ({ imagePath, employeeName, size = 60 }) => {
+  const [imageUri, setImageUri] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    async function resolveImage() {
-      setLoading(true);
+    let isMounted = true;
 
-      // No image? Show placeholder with initial
+    const loadImage = async () => {
+      setLoading(true);
+      setError(false);
+
+      // No image → show initials
       if (!imagePath) {
-        setUri(
-          `https://placehold.co/${size}x${size}/A0D9FF/007bff?text=${
-            employeeName ? employeeName.charAt(0) : "?"
-          }`
-        );
         setLoading(false);
         return;
       }
 
       try {
-        // Fetch the controller route so cookies are included
-        const res = await fetch(API_HOST + imagePath, {
+        const res = await fetch(getFrappeBaseUrl() + imagePath, {
           credentials: "include",
-          method: "GET",
-          redirect: "follow",
         });
-        if (res.ok) {
-          // res.url → final S3 presigned URL
-          setUri(res.url);
+
+        if (res.ok && isMounted) {
+          setImageUri(res.url);
         } else {
-          console.warn("Image fetch failed status:", res.status);
+          setError(true);
         }
-      } catch (err) {
-        console.error("Error resolving image URL:", err);
+      } catch (e) {
+        setError(true);
       } finally {
-        setLoading(false);
+        isMounted && setLoading(false);
       }
-    }
+    };
 
-    resolveImage();
-  }, [imagePath, employeeName, size]);
+    loadImage();
 
+    return () => {
+      isMounted = false;
+    };
+  }, [imagePath]);
+
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <View
         style={[
-          styles.placeholder,
+          styles.avatar,
+          styles.loader,
           { width: size, height: size, borderRadius: size / 2 },
         ]}
       >
-        <ActivityIndicator />
+        <ActivityIndicator size="small" color="#0C8DB6" />
       </View>
     );
   }
 
+  /* ================= IMAGE ================= */
+  if (imageUri && !error) {
+    return (
+      <Image
+        source={{ uri: imageUri }}
+        style={[
+          styles.avatar,
+          { width: size, height: size, borderRadius: size / 2 },
+        ]}
+      />
+    );
+  }
+
+  /* ================= INITIALS ================= */
   return (
-    <Image
-      source={{ uri }}
+    <View
       style={[
-        styles.image,
+        styles.avatar,
+        styles.initialContainer,
         { width: size, height: size, borderRadius: size / 2 },
       ]}
-    />
+    >
+      <Text style={[styles.initialText, { fontSize: size * 0.4 }]}>
+        {getInitials(employeeName)}
+      </Text>
+    </View>
   );
 };
 
+export default ProfileAvatar;
+
 const styles = StyleSheet.create({
-  image: {
-    backgroundColor: "#eee",
-  },
-  placeholder: {
-    backgroundColor: "#eee",
+  avatar: {
     alignItems: "center",
     justifyContent: "center",
   },
-});
 
-export default ProfileAvatar;
+  loader: {
+    backgroundColor: "#EAF6FB",
+  },
+
+  initialContainer: {
+    backgroundColor: "#EAF6FB",
+  },
+
+  initialText: {
+    fontWeight: "700",
+    color: "#0C8DB6",
+  },
+});

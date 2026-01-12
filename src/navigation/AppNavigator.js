@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   Wallet,
   CheckCheck,
+  Logs,
 } from "lucide-react-native";
 
 import { TouchableOpacity, View, StyleSheet } from "react-native";
@@ -34,11 +35,12 @@ import SettingsScreen from "../screens/SettingsScreen";
 import ExpenseClaimScreen from "../screens/ExpenseClaimScreen";
 import { createSharedOptions } from "./CreateSharedOptions";
 import { NavigationContainer } from "@react-navigation/native";
+import AttendanceScreen from "../screens/AttendanceScreen";
 
 const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
 const Stack = createNativeStackNavigator();
-
+const RootStack = createNativeStackNavigator();
 // Stack for Approval and related screens
 function ApprovalStack({
   navigation,
@@ -46,7 +48,7 @@ function ApprovalStack({
   currentEmployeeId,
   onLogout,
 }) {
-  const screenOptions = createSharedOptions();
+  const screenOptions = createSharedOptions(onLogout);
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Approvals" options={{ title: "Approvals" }}>
@@ -72,9 +74,9 @@ function BottomTabs({
   onLogout,
 }) {
   const insets = useSafeAreaInsets();
-  const screenOptions = createSharedOptions();
+  const screenOptions = createSharedOptions(onLogout);
   return (
-    <Tab.Navigator screenOptions={screenOptions}>
+    <Tab.Navigator initialRouteName="Info" screenOptions={screenOptions}>
       <Tab.Screen
         name="Home"
         options={{
@@ -118,7 +120,7 @@ function BottomTabs({
         }}
       >
         {(props) => (
-          <ShiftDetailsScreen
+          <AttendanceScreen
             {...props}
             currentUserEmail={currentUserEmail}
             currentEmployeeId={currentEmployeeId}
@@ -164,20 +166,18 @@ function BottomTabs({
       </Tab.Screen>
 
       <Tab.Screen
-        name="Expense Claim"
+        name="More"
+        component={View} // dummy component
         options={{
-          tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Logs size={size} color={color} />,
         }}
-      >
-        {(props) => (
-          <ExpenseClaimScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Tab.Screen>
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault(); // ⛔ stop default tab behavior
+            navigation.navigate("Home"); // ✅ go to Home
+          },
+        })}
+      ></Tab.Screen>
     </Tab.Navigator>
   );
 }
@@ -189,79 +189,114 @@ export default function AppNavigator({
   onLogout,
 }) {
   return (
-    <Drawer.Navigator screenOptions={{ headerShown: false }}>
-      <Drawer.Screen
-        name="Close"
-        options={{ drawerIcon: () => <ChevronLeft size={20} color="#000" /> }}
-      >
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      {/* MAIN APP */}
+      <RootStack.Screen name="Main">
         {() => (
-          <BottomTabs
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Drawer.Screen>
+          <Drawer.Navigator screenOptions={{ headerShown: false }}>
+            <Drawer.Screen
+              name="Close"
+              options={{
+                drawerIcon: () => <ChevronLeft size={20} color="#000" />,
+              }}
+            >
+              {() => (
+                <BottomTabs
+                  currentUserEmail={currentUserEmail}
+                  currentEmployeeId={currentEmployeeId}
+                  onLogout={onLogout}
+                />
+              )}
+            </Drawer.Screen>
 
-      <Drawer.Screen
-        name="Notifications"
-        options={{ drawerIcon: () => <Bell size={20} color="#000" /> }}
-      >
+            <Drawer.Screen
+              name="Notifications"
+              options={{ drawerIcon: () => <Bell size={20} color="#000" /> }}
+            >
+              {(props) => (
+                <NotificationScreen
+                  {...props}
+                  currentUserEmail={currentUserEmail}
+                  currentEmployeeId={currentEmployeeId}
+                  onLogout={onLogout}
+                />
+              )}
+            </Drawer.Screen>
+
+            <Drawer.Screen
+              name="Settings"
+              options={{
+                drawerIcon: () => <Settings size={20} color="#000" />,
+              }}
+            >
+              {(props) => (
+                <SettingsScreen
+                  {...props}
+                  currentUserEmail={currentUserEmail}
+                  currentEmployeeId={currentEmployeeId}
+                  onLogout={onLogout}
+                />
+              )}
+            </Drawer.Screen>
+
+            <Drawer.Screen
+              name="Theme"
+              options={{ drawerIcon: () => <Palette size={20} color="#000" /> }}
+            >
+              {(props) => (
+                <SettingsScreen
+                  {...props}
+                  currentUserEmail={currentUserEmail}
+                  currentEmployeeId={currentEmployeeId}
+                  onLogout={onLogout}
+                />
+              )}
+            </Drawer.Screen>
+
+            <Drawer.Screen
+              name="Approvals"
+              options={{
+                drawerIcon: () => <CheckCheck size={20} color="#000" />,
+              }}
+            >
+              {(props) => (
+                <ApprovalStack
+                  {...props}
+                  currentUserEmail={currentUserEmail}
+                  currentEmployeeId={currentEmployeeId}
+                  onLogout={onLogout}
+                />
+              )}
+            </Drawer.Screen>
+          </Drawer.Navigator>
+        )}
+      </RootStack.Screen>
+
+      {/* 🔥 HIDDEN BUT NAVIGABLE */}
+      <RootStack.Screen name="Expense Claim">
         {(props) => (
-          <NotificationScreen
+          <ExpenseClaimScreen
             {...props}
             currentUserEmail={currentUserEmail}
             currentEmployeeId={currentEmployeeId}
             onLogout={onLogout}
           />
         )}
-      </Drawer.Screen>
+      </RootStack.Screen>
 
-      <Drawer.Screen
-        name="Settings"
-        options={{ drawerIcon: () => <Settings size={20} color="#000" /> }}
-      >
+      <RootStack.Screen name="Shift Roaster">
         {(props) => (
-          <SettingsScreen
+          <ShiftDetailsScreen
             {...props}
             currentUserEmail={currentUserEmail}
             currentEmployeeId={currentEmployeeId}
             onLogout={onLogout}
           />
         )}
-      </Drawer.Screen>
-
-      <Drawer.Screen
-        name="Theme"
-        options={{ drawerIcon: () => <Palette size={20} color="#000" /> }}
-      >
-        {(props) => (
-          <SettingsScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Drawer.Screen>
-
-      <Drawer.Screen
-        name="Approvals"
-        options={{ drawerIcon: () => <CheckCheck size={20} color="#000" /> }}
-      >
-        {(props) => (
-          <ApprovalStack
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Drawer.Screen>
-    </Drawer.Navigator>
+      </RootStack.Screen>
+    </RootStack.Navigator>
   );
 }
-
 const styles = StyleSheet.create({
   fabContainer: {
     backgroundColor: "#007bff",

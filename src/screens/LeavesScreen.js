@@ -7,12 +7,20 @@ import {
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
-  RefreshControl, // Added for pull-to-refresh
-  Alert, // For showing more user-friendly error messages
+  RefreshControl,
+  Alert,
+  FlatList,
 } from "react-native";
 import { getResource, getResourceList } from "../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
+import DoctypeFormModal from "../Components/DoctypeFormModal";
+import {
+  Calendar as CalendarIcon,
+  List as ListIcon,
+  Plus,
+  CalendarCheck,
+} from "lucide-react-native";
 
 // --- Constants and Utility Functions (Keep as is, they are good!) ---
 const STATUS_COLORS = {
@@ -20,6 +28,13 @@ const STATUS_COLORS = {
   Absent: { bg: "#f8d7da", text: "#721c24" },
   Leave: { bg: "#cce5ff", text: "#004085" },
   Holiday: { bg: "#fff3cd", text: "#856404" },
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return String(dateString);
+  return date.toLocaleDateString();
 };
 
 const getLeaveIcon = (type) => {
@@ -38,6 +53,7 @@ const getLeaveColor = (type) => {
 // --- End Constants and Utility Functions ---
 
 const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
+  const doctype = "Leave Application";
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 400;
 
@@ -48,7 +64,8 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false); // For pull-to-refresh
   const [error, setError] = useState(null);
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [viewType, setViewType] = useState("list");
+  const [showApplyModal, setShowApplyModal] = useState(false);
 
   const fetchLeaveData = useCallback(
     async (isRefresh = false) => {
@@ -127,7 +144,13 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         // Leave Applications
         const leaveApps = await getResourceList("Leave Application", {
           filters: JSON.stringify([["employee", "=", currentEmployeeId]]),
-          fields: JSON.stringify(["from_date", "to_date", "leave_type"]),
+          fields: JSON.stringify([
+            "name",
+            "from_date",
+            "to_date",
+            "leave_type",
+            "status",
+          ]),
           order_by: "from_date desc",
           limit_page_length: 20,
         });
@@ -230,6 +253,145 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
     return marks;
   };
 
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.toolbar}>
+        <View style={styles.viewToggles}>
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              viewType === "list" && styles.activeIconButton,
+            ]}
+            onPress={() => setViewType("list")}
+          >
+            <ListIcon size={20} color={viewType === "list" ? "#fff" : "#333"} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              viewType === "calendar" && styles.activeIconButton,
+            ]}
+            onPress={() => setViewType("calendar")}
+          >
+            <CalendarIcon
+              size={20}
+              color={viewType === "calendar" ? "#fff" : "#333"}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowApplyModal(true)}
+        >
+          <Plus size={16} color="#fff" />
+          <Text style={styles.addButtonText}>Apply Leave</Text>
+        </TouchableOpacity>
+      </View>
+
+      {viewType === "list" && (
+        <View style={styles.listHeaderBar}>
+          <View style={styles.listHeaderLeft}>
+            <ListIcon size={18} color="orange" />
+            <Text style={styles.listHeaderTitle}>Leave Applications</Text>
+          </View>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{leaveApplications.length}</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderLeaveItem = ({ item }) => {
+    const badgeColor = item.leave_type
+      ? getLeaveColor(item.leave_type)
+      : "#6c757d";
+    return (
+      <TouchableOpacity style={styles.card} activeOpacity={0.85}>
+        <View style={styles.cardRow}>
+          <View style={styles.iconContainer}>
+            <CalendarCheck size={20} color="#555" />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.employeeName}>
+              {item.leave_type || "Leave"}
+            </Text>
+            <Text style={styles.dateText}>
+              {formatDate(item.from_date)} - {formatDate(item.to_date)}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: `${badgeColor}22`,
+                borderColor: `${badgeColor}55`,
+              },
+            ]}
+          >
+            <Text style={[styles.statusText, { color: badgeColor }]}>
+              {item.status || "Applied"}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderLeaveBalancesHeader = () => (
+    <View style={styles.leaveCardsGrid}>
+      {leaveBalances.length === 0 ? (
+        <View style={styles.noDataContainer}>
+          <MaterialIcons name="info-outline" size={40} color="#666" />
+          <Text style={styles.noDataText}>No leave balances found.</Text>
+          <Text style={styles.noDataSubText}>
+            Looks like there's no leave allocated to you yet. Pull down to
+            refresh or contact HR for more information.
+          </Text>
+        </View>
+      ) : (
+        leaveBalances.map((item, index) => (
+          <View
+            key={`${item.type}-${index}`}
+            style={[
+              styles.leaveCard,
+              (index + 1) % 2 === 0 && { marginRight: 0 },
+            ]}
+          >
+            <View
+              style={[styles.cardIcon, { backgroundColor: item.color + "22" }]}
+            >
+              <MaterialIcons name={item.icon} size={28} color={item.color} />
+            </View>
+            <Text style={styles.cardTitle}>{item.type}</Text>
+            <View style={styles.cardStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Allocated</Text>
+                <Text style={styles.statValue}>{item.allocated}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Taken</Text>
+                <Text style={styles.statValue}>{item.taken}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Remaining</Text>
+                <Text
+                  style={[
+                    styles.statValueHighlight,
+                    { color: item.remaining < 0 ? "#dc3545" : "#28a745" },
+                  ]}
+                >
+                  {item.remaining}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))
+      )}
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -254,51 +416,31 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#007bff"
-        />
-      }
-    >
-      {/* Header with Title and Toggle Button */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Leave Overview</Text>
-        <TouchableOpacity
-          onPress={() => setShowCalendar(!showCalendar)}
-          style={styles.switchButton}
-        >
-          <MaterialIcons
-            name={showCalendar ? "grid-on" : "calendar-today"}
-            size={18}
-            color="#fff"
-            style={styles.switchButtonIcon}
-          />
-          <Text style={styles.switchButtonText}>
-            {showCalendar ? "Card" : "Calendar"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      {renderHeader()}
 
-      {/* Conditional Rendering based on showCalendar state */}
-      {showCalendar ? (
-        <>
+      {viewType === "calendar" ? (
+        <ScrollView
+          contentContainerStyle={styles.contentContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#007bff"
+            />
+          }
+        >
           <Calendar
             markingType="custom"
             markedDates={getMarkedDates()}
             style={styles.calendarStyle}
             theme={{
-              todayTextColor: "#007bff", // Highlight today
-              arrowColor: "#007bff", // Navigation arrows
-              selectedDayBackgroundColor: "#007bff", // Selected day (if you add selection)
+              todayTextColor: "#007bff",
+              arrowColor: "#007bff",
+              selectedDayBackgroundColor: "#007bff",
               dotColor: "#007bff",
             }}
           />
-          {/* Calendar Legend */}
           <View style={styles.legendContainer}>
             {Object.keys(STATUS_COLORS).map((key) => (
               <View key={key} style={styles.legendItem}>
@@ -312,120 +454,56 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
               </View>
             ))}
           </View>
-        </>
+        </ScrollView>
       ) : (
-        <View style={styles.leaveCardsGrid}>
-          {leaveBalances.length === 0 ? (
+        <FlatList
+          data={leaveApplications}
+          keyExtractor={(item, index) =>
+            item.name || `${item.from_date}-${index}`
+          }
+          renderItem={renderLeaveItem}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListHeaderComponent={renderLeaveBalancesHeader}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
             <View style={styles.noDataContainer}>
-              <MaterialIcons name="info-outline" size={40} color="#666" />
-              <Text style={styles.noDataText}>No leave balances found.</Text>
+              <MaterialIcons name="event-note" size={40} color="#666" />
+              <Text style={styles.noDataText}>
+                No leave applications found.
+              </Text>
               <Text style={styles.noDataSubText}>
-                Looks like there's no leave allocated to you yet. Pull down to
-                refresh or contact HR for more information.
+                Tap Apply Leave to create a new request.
               </Text>
             </View>
-          ) : (
-            leaveBalances.map((item, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.leaveCard,
-                  (index + 1) % 2 === 0 && { marginRight: 0 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.cardIcon,
-                    { backgroundColor: item.color + "22" },
-                  ]}
-                >
-                  <MaterialIcons name={item.icon} size={28} color={item.color} />
-                </View>
-                <Text style={styles.cardTitle}>{item.type}</Text>
-                <View style={styles.cardStats}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statLabel}>Allocated</Text>
-                    <Text style={styles.statValue}>{item.allocated}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statLabel}>Taken</Text>
-                    <Text style={styles.statValue}>{item.taken}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statLabel}>Remaining</Text>
-                    <Text
-                      style={[
-                        styles.statValueHighlight,
-                        { color: item.remaining < 0 ? "#dc3545" : "#28a745" },
-                      ]}
-                    >
-                      {item.remaining}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
+          }
+        />
       )}
 
-      {/* Recently Applied Leaves Section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recently Applied Leaves</Text>
-      </View>
-      {leaveApplications.length === 0 ? (
-        <View style={styles.noDataContainer}>
-          <MaterialIcons name="event-note" size={40} color="#666" />
-          <Text style={styles.noDataText}>No recent leave applications.</Text>
-          <Text style={styles.noDataSubText}>
-            You haven't applied for any leaves recently.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.leaveApplicationsList}>
-          {leaveApplications.map((app, index) => (
-            <View key={index} style={styles.applicationItem}>
-              <MaterialIcons
-                name="event"
-                size={24}
-                color="#6c757d"
-                style={styles.applicationIcon}
-              />
-              <View style={styles.applicationDetails}>
-                <Text style={styles.applicationType}>{app.leave_type}</Text>
-                <Text style={styles.applicationDates}>
-                  {new Date(app.from_date).toLocaleDateString()} -{" "}
-                  {new Date(app.to_date).toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Button to Apply for Leave */}
-      <TouchableOpacity style={styles.applyLeaveButton}>
-        <MaterialIcons name="add" size={24} color="#fff" />
-        <Text style={styles.applyLeaveButtonText}>Apply for Leave</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <DoctypeFormModal
+        visible={showApplyModal}
+        onClose={() => setShowApplyModal(false)}
+        doctype={doctype}
+        title="Leave Application"
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa", // Lighter background
+    backgroundColor: "#f5f7fa",
+    padding: 16,
   },
   contentContainer: {
-    padding: 20,
-    paddingBottom: 40, // More bottom padding for apply button
+    paddingBottom: 20,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#f5f7fa",
   },
   loadingText: {
     marginTop: 10,
@@ -449,6 +527,196 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  headerContainer: {
+    marginBottom: 16,
+  },
+  toolbar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  viewToggles: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 6,
+  },
+  activeIconButton: {
+    backgroundColor: "#271085",
+  },
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#271085",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  listHeaderBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#e9ecef",
+    padding: 12,
+    borderRadius: 8,
+  },
+  listHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  listHeaderTitle: {
+    fontWeight: "600",
+    fontSize: 14,
+    color: "#333",
+  },
+  badge: {
+    backgroundColor: "#271085",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  leaveCardsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  leaveCard: {
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 15,
+    width: "48%",
+    marginRight: "4%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#e9ecef",
+  },
+  cardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#343a40",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  cardStats: {
+    width: "100%",
+    paddingHorizontal: 5,
+  },
+  statItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#dee2e6",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#6c757d",
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#495057",
+  },
+  statValueHighlight: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    marginBottom: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#eee",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f0f0f0",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  cardContent: {
+    flex: 1,
+  },
+  employeeName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  dateText: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -676,6 +944,127 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginLeft: 10,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e9ecef",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#343a40",
+  },
+  modalBody: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  formField: {
+    marginBottom: 14,
+  },
+  formLabel: {
+    fontSize: 13,
+    color: "#6c757d",
+    marginBottom: 6,
+  },
+  inputField: {
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#343a40",
+    backgroundColor: "#fff",
+  },
+  selectField: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  optionPill: {
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    backgroundColor: "#fff",
+  },
+  optionPillActive: {
+    borderColor: "#007bff",
+    backgroundColor: "#e7f1ff",
+  },
+  optionText: {
+    fontSize: 13,
+    color: "#343a40",
+  },
+  optionTextActive: {
+    color: "#007bff",
+    fontWeight: "600",
+  },
+  dropdownList: {
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 10,
+    marginTop: 6,
+    backgroundColor: "#fff",
+    maxHeight: 180,
+  },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e9ecef",
+  },
+  dropdownItemActive: {
+    backgroundColor: "#e7f1ff",
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: "#343a40",
+  },
+  checkField: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkLabel: {
+    marginLeft: 8,
+    color: "#343a40",
+    fontSize: 14,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e9ecef",
+  },
+  footerButton: {
+    flex: 1,
+    marginHorizontal: 6,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  footerButtonText: {
+    color: "#fff",
+    fontWeight: "700",
   },
 });
 

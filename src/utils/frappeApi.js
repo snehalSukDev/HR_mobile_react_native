@@ -1,15 +1,44 @@
 import * as Location from "expo-location";
 import axiosInstance from "./axiosInstance";
+import { setAxiosBaseURL } from "./axiosInstance";
 import qs from "qs";
 // src/utils/frappeApi.js
 // Utility functions for interacting with the Frappe API in React Native.
 // These use standard fetch, which works in React Native.
 
-const FRAPPE_BASE_URL = "https://glsdemo.techbirdit.in"; // !!! IMPORTANT: REPLACE THIS WITH YOUR ACTUAL FRAPPE SITE URL !!!
+let frappeBaseUrl = "https://glsdemo.techbirdit.in";
+
+function normalizeFrappeBaseUrl(input) {
+  const raw = String(input || "").trim();
+  if (!raw) throw new Error("Frappe URL is required");
+
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  let url;
+  try {
+    url = new URL(withProtocol);
+  } catch {
+    throw new Error("Invalid Frappe URL");
+  }
+
+  const origin = url.origin;
+  if (!/^https?:\/\//i.test(origin)) throw new Error("Invalid Frappe URL");
+  return origin.replace(/\/+$/, "");
+}
+
+export function setFrappeBaseUrl(nextBaseUrl) {
+  const normalized = normalizeFrappeBaseUrl(nextBaseUrl);
+  frappeBaseUrl = normalized;
+  setAxiosBaseURL(`${normalized}/`);
+  return frappeBaseUrl;
+}
+
+export function getFrappeBaseUrl() {
+  return frappeBaseUrl;
+}
 
 // Helper function for making authenticated Frappe API requests
 async function frappeFetch(path, options = {}) {
-  const url = `${FRAPPE_BASE_URL}${path}`;
+  const url = `${frappeBaseUrl}${path}`;
   console.log(`[FrappeAPI] Fetching: ${url}`); // Debugging log
 
   try {
@@ -51,8 +80,9 @@ async function frappeFetch(path, options = {}) {
 
 // Function for actual user login with Frappe
 export async function loginUser(email, password) {
+  console.log(`[FrappeAPI] Login attempt for user: ${(email, password)}`);
   try {
-    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/login`, {
+    const response = await fetch(`${frappeBaseUrl}/api/method/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,6 +144,9 @@ export async function fetchEmployeeDetails(identifier, byEmail = true) {
     "gender",
     "blood_group",
     "image",
+    "employment_type",
+    "person_to_be_contacted",
+    "emergency_phone_number",
   ];
 
   if (byEmail) {
@@ -141,11 +174,30 @@ export async function fetchEmployeeDetails(identifier, byEmail = true) {
 // Get a list of resources (DocTypes) with filters and fields
 export async function getResourceList(doctype, params = {}) {
   const queryParams = new URLSearchParams();
-  if (params.filters) queryParams.append("filters", params.filters);
-  if (params.fields) queryParams.append("fields", params.fields);
-  if (params.order_by) queryParams.append("order_by", params.order_by);
-  if (params.limit_page_length)
-    queryParams.append("limit_page_length", params.limit_page_length);
+  const normalizeJsonParam = (value) => {
+    if (value == null) return null;
+    return typeof value === "string" ? value : JSON.stringify(value);
+  };
+
+  const filters = normalizeJsonParam(params.filters);
+  const fields = normalizeJsonParam(params.fields);
+  const orderBy = params.order_by ?? params.orderBy;
+  const limitPageLength =
+    params.limit_page_length ?? params.limitPageLength ?? params.limit;
+  const asDict = params.as_dict ?? params.asDict;
+
+  if (filters) queryParams.append("filters", filters);
+  if (fields) queryParams.append("fields", fields);
+  if (orderBy) {
+    const orderByString =
+      typeof orderBy === "string"
+        ? orderBy
+        : `${orderBy.field} ${(orderBy.order || "asc").toLowerCase()}`;
+    queryParams.append("order_by", orderByString);
+  }
+  if (limitPageLength != null)
+    queryParams.append("limit_page_length", String(limitPageLength));
+  if (asDict) queryParams.append("as_dict", "1");
 
   try {
     const data = await frappeFetch(
@@ -199,7 +251,7 @@ export async function callFrappeMethod(method, args = {}) {
 export async function logoutUser() {
   try {
     // Frappe's logout method is usually a GET request
-    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/logout`, {
+    const response = await fetch(`${frappeBaseUrl}/api/method/logout`, {
       method: "GET",
       credentials: "include", // Ensure cookies are sent to clear session
     });
@@ -235,3 +287,80 @@ export async function getGeolocation() {
     longitude: position.coords.longitude,
   };
 }
+
+export async function getMetaData(doctype) {
+  try {
+    const res = await axiosInstance.get(
+      `/api/method/frappe.desk.form.load.getdoctype`,
+      { params: { doctype } }
+    );
+    const docs = res?.data?.message?.docs || res?.data?.docs || [];
+    const fields = Array.isArray(docs) && docs[0]?.fields ? docs[0].fields : [];
+    return { docs, fields };
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function fnSearchLink(
+  txt = "",
+  linkDoctype = "",
+  ignore_user_permissions = 0,
+  reference_doctype = "",
+  filter = { query: "", filters: {} }
+) {
+  try {
+    const payload = {
+      txt,
+      doctype: linkDoctype,
+      ignore_user_permissions,
+      reference_doctype,
+      page_length: 10,
+      query: filter?.query || "",
+      filters: JSON.stringify(filter?.filters) || {},
+    };
+    const response = await axiosInstance.post(
+      `/api/v2/method/frappe.desk.search.search_link`,
+      qs.stringify(payload),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        },
+      }
+    );
+    const d = response?.data;
+    if (Array.isArray(d?.data)) return d.data;
+    if (Array.isArray(d?.message?.results)) return d.message.results;
+    if (Array.isArray(d?.results)) return d.results;
+    if (Array.isArray(d)) return d;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveDoc(doc) {
+  try {
+    const res = await axiosInstance.post(
+      "/api/method/frappe.desk.form.save.savedocs",
+      qs.stringify({
+        doc: JSON.stringify(doc),
+        action: "Save",
+      }),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    return res.data?.message;
+  } catch (error) {
+    console.error("Save Doc Error:", error?.response?.data || error);
+    throw new Error(
+      error?.response?.data?.message || "Failed to save document"
+    );
+  }
+}
+
+setAxiosBaseURL(`${frappeBaseUrl}/`);

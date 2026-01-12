@@ -13,6 +13,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
+import DoctypeFormModal from "../Components/DoctypeFormModal";
 
 const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const { width } = useWindowDimensions();
@@ -23,6 +24,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [showNewModal, setShowNewModal] = useState(false);
 
   const fetchClaims = useCallback(async () => {
     if (!currentEmployeeId) return;
@@ -127,7 +129,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
     <ScrollView style={styles.container}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Expense Claims</Text>
-        <TouchableOpacity style={styles.newButton}>
+        <TouchableOpacity style={styles.newButton} onPress={() => setShowNewModal(true)}>
           <MaterialIcons name="add" size={20} color="#fff" />
 
           <Text style={styles.newButtonText}>New</Text>
@@ -166,6 +168,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
           {renderClaimRows(claimsToApprove, true)}
         </>
       )}
+      <DoctypeFormModal visible={showNewModal} onClose={() => setShowNewModal(false)} doctype="Expense Claim" title="Expense Claim" />
     </ScrollView>
   );
 };

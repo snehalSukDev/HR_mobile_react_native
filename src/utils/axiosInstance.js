@@ -12,4 +12,12 @@ const axiosInstance = axios.create({
   // headers: { Authorization: `Bearer ${token}` }
 });
 
+export function setAxiosBaseURL(baseURL) {
+  axiosInstance.defaults.baseURL = baseURL;
+}
+
+export function getAxiosBaseURL() {
+  return axiosInstance.defaults.baseURL;
+}
+
 export default axiosInstance;

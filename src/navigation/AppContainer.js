@@ -41,6 +41,43 @@ const AppContainer = () => {
     checkLoginStatus();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.warn("Logout error:", error);
+    } finally {
+      // Clear local state regardless of server logout success
+      setIsAuthenticated(false);
+      setCurrentUserEmail(null);
+      setCurrentEmployeeId(null);
+    }
+  };
+
+  const handleLoginSuccess = async () => {
+    // Re-fetch user details after successful login
+    try {
+      const user = await getCurrentUser();
+      console.log("Login success, user:", user);
+      if (user && user.email) {
+        setCurrentUserEmail(user.email);
+        const emp = await fetchEmployeeDetails(user.email, true);
+        if (emp && emp.name) {
+          setCurrentEmployeeId(emp.name);
+        }
+        setIsAuthenticated(true);
+      } else {
+        // Fallback if getCurrentUser fails or returns guest immediately after login
+        // (Shouldn't happen if loginUser set cookies correctly)
+        console.warn("Login success but getCurrentUser returned invalid data");
+        setIsAuthenticated(true); // Let them in, but they might not have data
+      }
+    } catch (error) {
+      console.error("Error fetching user details after login:", error);
+      setIsAuthenticated(true); // Let them in? Or show error? Better to let them in and retry fetching in screens if needed, or handle gracefully.
+    }
+  };
+
   if (isAuthenticated === null) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -55,10 +92,10 @@ const AppContainer = () => {
         <AppNavigator
           currentUserEmail={currentUserEmail}
           currentEmployeeId={currentEmployeeId}
-          onLogout={() => setIsAuthenticated(false)}
+          onLogout={handleLogout}
         />
       ) : (
-        <AuthNavigator onLoginSuccess={() => setIsAuthenticated(true)} />
+        <AuthNavigator onLoginSuccess={handleLoginSuccess} />
       )}
     </NavigationContainer>
   );

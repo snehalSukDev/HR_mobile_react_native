@@ -1,24 +1,31 @@
-// src/screens/SalarySlipScreen.js
-// Displays employee's salary slips.
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
-  Button,
+  FlatList,
   TouchableOpacity,
   Alert,
+  Button,
 } from "react-native";
 import { getResourceList } from "../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
+import { List as ListIcon, DollarSign } from "lucide-react-native";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
   const options = { year: "numeric", month: "short", day: "numeric" };
   return new Date(dateString).toLocaleDateString("en-US", options);
+};
+
+const statusToColorMap = {
+  Draft: { bg: "#e0f2f1", text: "#00695c" },
+  Submitted: { bg: "#fff3e0", text: "#ef6c00" },
+  Cancelled: { bg: "#ffebee", text: "#c62828" },
+  Paid: { bg: "#e8f5e9", text: "#2e7d32" },
+  Unpaid: { bg: "#ffebee", text: "#c62828" },
+  Overdue: { bg: "#fce4ec", text: "#880e4f" },
 };
 
 const SalarySlipScreen = ({
@@ -29,53 +36,145 @@ const SalarySlipScreen = ({
   const [salarySlips, setSalarySlips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("structure"); // ✅ FIX: Added state for activeTab
+  const [activeTab, setActiveTab] = useState("structure");
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchSalarySlips = useCallback(async () => {
-    if (!currentEmployeeId) {
-      setLoading(false);
-      setError("Employee ID not available to fetch salary slips.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const filters = [["employee", "=", currentEmployeeId]];
-      const slips = await getResourceList("Salary Slip", {
-        filters: JSON.stringify(filters),
-        fields: JSON.stringify([
-          "name",
-          "start_date",
-          "end_date",
-          "gross_pay",
-          "net_pay",
-          "status",
-          "employee_name",
-        ]),
-        order_by: "start_date desc",
-        limit_page_length: 20,
-      });
-      setSalarySlips(slips);
-    } catch (err) {
-      console.error("Error fetching salary slips:", err);
-      setError(
-        `Failed to load salary slips: ${err.message || "Unknown error"}`
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [currentEmployeeId]);
+  const fetchSalarySlips = useCallback(
+    async (isRefresh = false) => {
+      if (!currentEmployeeId) {
+        if (isRefresh) setRefreshing(false);
+        else setLoading(false);
+        setError("Employee ID not available to fetch salary slips.");
+        return;
+      }
+
+      if (!isRefresh) setLoading(true);
+      setError(null);
+      try {
+        const filters = [["employee", "=", currentEmployeeId]];
+        const slips = await getResourceList("Salary Slip", {
+          filters: JSON.stringify(filters),
+          fields: JSON.stringify([
+            "name",
+            "start_date",
+            "end_date",
+            "gross_pay",
+            "net_pay",
+            "status",
+            "employee_name",
+          ]),
+          order_by: "start_date desc",
+          limit_page_length: 20,
+        });
+        setSalarySlips(slips || []);
+      } catch (err) {
+        console.error("Error fetching salary slips:", err);
+        setError(
+          `Failed to load salary slips: ${err.message || "Unknown error"}`
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [currentEmployeeId]
+  );
 
   useEffect(() => {
     fetchSalarySlips();
   }, [fetchSalarySlips]);
 
-  const handleViewSalarySlip = (slipName) => {
-    Alert.alert("View Salary Slip", `Viewing salary slip: ${slipName}`);
-    // In a real app, you might navigate to a detail screen or open a webview for the PDF.
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchSalarySlips(true);
   };
 
-  if (loading) {
+  const handleViewSalarySlip = (slipName) => {
+    Alert.alert("View Salary Slip", `Viewing salary slip: ${slipName}`);
+  };
+
+  const renderItem = ({ item }) => {
+    const statusColor = statusToColorMap[item.status]?.bg || "#f0f2f5";
+    const statusTextColor = statusToColorMap[item.status]?.text || "#333";
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleViewSalarySlip(item.name)}
+      >
+        <View style={styles.cardRow}>
+          <View style={styles.iconContainer}>
+            <DollarSign size={20} color="#555" />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.employeeName}>{item.employee_name}</Text>
+            <Text style={styles.dateText}>
+              {formatDate(item.start_date)} - {formatDate(item.end_date)}
+            </Text>
+            <Text style={styles.amountText}>
+              Net: ₹ {parseFloat(item.net_pay || 0).toFixed(2)}
+            </Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Text style={[styles.statusText, { color: statusTextColor }]}>
+              {item.status}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "structure" && styles.activeTabButton,
+          ]}
+          onPress={() => setActiveTab("structure")}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              activeTab === "structure" && styles.activeTabButtonText,
+            ]}
+          >
+            Payroll Structure
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "payslip" && styles.activeTabButton,
+          ]}
+          onPress={() => setActiveTab("payslip")}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              activeTab === "payslip" && styles.activeTabButtonText,
+            ]}
+          >
+            Download Payslip
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.listHeaderBar}>
+        <View style={styles.listHeaderLeft}>
+          <ListIcon size={18} color="orange" />
+          <Text style={styles.listHeaderTitle}>Salary Slips List</Text>
+        </View>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{salarySlips.length}</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007bff" />
@@ -88,109 +187,46 @@ const SalarySlipScreen = ({
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
-        <Button title="Reload" onPress={fetchSalarySlips} color="#007bff" />
+        <Button
+          title="Reload"
+          onPress={() => fetchSalarySlips()}
+          color="#007bff"
+        />
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>My Salary Slips</Text>
-      </View>
-
-      {/* ✅ FIX: Proper closing tag */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[
-            styles.leftButton,
-            activeTab === "structure" && styles.activeButton,
-          ]}
-          onPress={() => setActiveTab("structure")}
-        >
-          <Text style={styles.buttonText}>Payroll Structure</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.rightButton,
-            activeTab === "payslip" && styles.activeButton,
-          ]}
-          onPress={() => setActiveTab("payslip")}
-        >
-          <Text style={styles.buttonText}>Download Payslip</Text>
-        </TouchableOpacity>
-      </View>
-
-      {salarySlips.length > 0 ? (
-        salarySlips.map((slip) => (
-          <View key={slip.name} style={styles.salarySlipItemCard}>
-            <View style={styles.slipDetails}>
-              <Text style={styles.slipPeriod}>
-                Period: {formatDate(slip.start_date)} -{" "}
-                {formatDate(slip.end_date)}
-              </Text>
-              <Text style={styles.slipAmounts}>
-                Gross: ₹ {parseFloat(slip.gross_pay || 0).toFixed(2)} | Net: ₹{" "}
-                {parseFloat(slip.net_pay || 0).toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.slipActions}>
-              <View
-                style={[
-                  styles.slipStatusBadge,
-                  styles[`status${slip.status.replace(/\s/g, "")}`],
-                ]}
-              >
-                <Text style={styles.statusText}>{slip.status}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => handleViewSalarySlip(slip.name)}
-                style={styles.iconButton}
-              >
-                <MaterialIcons name="visibility" size={20} color="#666" />
-                <Text style={styles.iconButtonText}>View</Text>
-              </TouchableOpacity>
-            </View>
+    <View style={styles.container}>
+      <FlatList
+        data={salarySlips}
+        keyExtractor={(item) => item.name}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={renderHeader}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No salary slips found.</Text>
           </View>
-        ))
-      ) : (
-        <Text style={styles.noDataText}>
-          No salary slips found for your employee ID.
-        </Text>
-      )}
-
-      {salarySlips.length > 0 && (
-        <TouchableOpacity
-          style={styles.viewAllLink}
-          onPress={() =>
-            Alert.alert("View All", "Navigating to all salary slips")
-          }
-        >
-          <Text style={styles.viewAllLinkText}>View All Salary Slips</Text>
-          <MaterialIcons name="arrow-right-alt" size={18} color="#007bff" />
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+        }
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0f2f5",
-    padding: 15,
-  },
-  contentContainer: {
-    paddingBottom: 20,
+    backgroundColor: "#f5f7fa", // Match AttendanceScreen
+    padding: 16,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f0f2f5",
+    backgroundColor: "#f5f7fa",
   },
   loadingText: {
     marginTop: 10,
@@ -200,109 +236,139 @@ const styles = StyleSheet.create({
   errorText: {
     color: "red",
     marginBottom: 10,
-  },
-  noDataText: {
-    color: "#666",
     textAlign: "center",
-    padding: 15,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    paddingHorizontal: 20,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  salarySlipItemCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 15,
+  headerContainer: {
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+  },
+  listHeaderBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    flexWrap: "wrap",
-    gap: 10,
+    justifyContent: "space-between",
+    backgroundColor: "#e9ecef",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
   },
-  slipDetails: {
-    flex: 1,
-    minWidth: 150,
-  },
-  slipPeriod: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 5,
-  },
-  slipAmounts: {
-    fontSize: 13,
-    color: "#666",
-  },
-  slipActions: {
+  listHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
   },
-  slipStatusBadge: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-    minWidth: 80,
+  listHeaderTitle: {
+    fontWeight: "600",
+    fontSize: 14,
+    color: "#333",
+  },
+  badge: {
+    backgroundColor: "#271085",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
     alignItems: "center",
     justifyContent: "center",
   },
-  statusText: {
+  badgeText: {
+    color: "#fff",
     fontSize: 12,
     fontWeight: "bold",
-    textTransform: "uppercase",
-    color: "#fff",
   },
-  statusApproved: { backgroundColor: "#e8f5e9", color: "#43a047" },
-  statusPaid: { backgroundColor: "#e0f2f7", color: "#01579b" },
-  iconButton: {
-    padding: 5,
-    borderRadius: 20,
+  listContent: {
+    paddingBottom: 20,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    marginBottom: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#eee",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "space-between",
+    gap: 10,
   },
-  iconButtonText: {
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f0f0f0",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  cardContent: {
+    flex: 1,
+  },
+  employeeName: {
     fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  dateText: {
+    fontSize: 12,
     color: "#666",
+    marginTop: 2,
   },
-  viewAllLink: {
-    flexDirection: "row",
-    alignSelf: "flex-end",
-    alignItems: "center",
-    gap: 5,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  viewAllLinkText: {
-    color: "#007bff",
-    fontSize: 14,
+  amountText: {
+    fontSize: 12,
+    color: "#333",
+    marginTop: 2,
     fontWeight: "500",
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: "#777",
+    fontStyle: "italic",
+  },
+  // Tab buttons
+  buttonContainer: {
+    flexDirection: "row",
+    marginBottom: 0,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  activeTabButton: {
+    backgroundColor: "#271085",
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+  },
+  activeTabButtonText: {
+    color: "#fff",
   },
 });
 
