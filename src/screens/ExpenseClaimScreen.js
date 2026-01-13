@@ -3,87 +3,269 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
-  Button,
+  FlatList,
   TouchableOpacity,
-  useWindowDimensions,
+  Alert,
+  Button,
+  Platform,
 } from "react-native";
-// import Icon from 'react-native-vector-icons/MaterialIcons';
-import { MaterialIcons } from "@expo/vector-icons";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
+import {
+  Wallet,
+  Plus,
+  List as ListIcon,
+  DollarSign,
+} from "lucide-react-native";
+import { format, parseISO } from "date-fns";
 import DoctypeFormModal from "../Components/DoctypeFormModal";
 
-const ExpenseClaimScreen = ({ currentEmployeeId }) => {
-  const { width } = useWindowDimensions();
-  const isSmall = width < 400;
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  try {
+    return format(parseISO(dateString), "dd MMM yy");
+  } catch (e) {
+    return dateString;
+  }
+};
 
+const statusToColorMap = {
+  Draft: { bg: "#e0f2f1", text: "#00695c" },
+  Submitted: { bg: "#fff3e0", text: "#ef6c00" },
+  Cancelled: { bg: "#ffebee", text: "#c62828" },
+  Paid: { bg: "#e8f5e9", text: "#2e7d32" },
+  Approved: { bg: "#e8f5e9", text: "#2e7d32" },
+  Rejected: { bg: "#ffebee", text: "#c62828" },
+  Unpaid: { bg: "#ffebee", text: "#c62828" },
+  Pending: { bg: "#fff3e0", text: "#ef6c00" },
+};
+
+const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const [myClaims, setMyClaims] = useState([]);
   const [claimsToApprove, setClaimsToApprove] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [showNewModal, setShowNewModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("my_claims");
 
-  const fetchClaims = useCallback(async () => {
-    if (!currentEmployeeId) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Fetch own claims
-      const filters = [["employee", "=", currentEmployeeId]];
-      if (statusFilter !== "All") {
-        filters.push(["docstatus", "=", statusFilter === "Submitted" ? 1 : 0]);
+  const fetchClaims = useCallback(
+    async (isRefresh = false) => {
+      if (!currentEmployeeId) {
+        if (isRefresh) setRefreshing(false);
+        else setLoading(false);
+        return;
       }
 
-      const myData = await getResourceList("Expense Claim", {
-        filters: JSON.stringify(filters),
-        fields: JSON.stringify([
-          "name",
-          "posting_date",
-          "total_claimed_amount",
-          "approval_status",
-        ]),
-        order_by: "posting_date desc",
-        limit_page_length: 50,
-      });
+      if (!isRefresh) setLoading(true);
+      setError(null);
 
-      setMyClaims(myData);
+      try {
+        // Fetch own claims
+        const filters = [["employee", "=", currentEmployeeId]];
+        if (statusFilter !== "All") {
+          filters.push([
+            "docstatus",
+            "=",
+            statusFilter === "Submitted" ? 1 : 0,
+          ]);
+        }
 
-      // Fetch claims pending for user's approval
-      const approvalData = await getResourceList("Expense Claim", {
-        filters: JSON.stringify([
-          ["expense_approver", "=", currentEmployeeId],
-          ["approval_status", "=", "Pending"],
-        ]),
-        fields: JSON.stringify([
-          "name",
-          "employee_name",
-          "posting_date",
-          "total_claimed_amount",
-          "approval_status",
-        ]),
-        order_by: "posting_date desc",
-        limit_page_length: 50,
-      });
+        const myData = await getResourceList("Expense Claim", {
+          filters: JSON.stringify(filters),
+          fields: JSON.stringify([
+            "name",
+            "posting_date",
+            "total_claimed_amount",
+            "approval_status",
+            "employee_name",
+          ]),
+          order_by: "posting_date desc",
+          limit_page_length: 50,
+        });
 
-      setClaimsToApprove(approvalData);
-    } catch (err) {
-      console.error("Error fetching expense claims:", err);
-      setError("Failed to load expense claims.");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentEmployeeId, statusFilter]);
+        setMyClaims(myData || []);
+
+        // Fetch claims pending for user's approval
+        const approvalData = await getResourceList("Expense Claim", {
+          filters: JSON.stringify([
+            ["expense_approver", "=", currentEmployeeId],
+            ["approval_status", "=", "Pending"],
+          ]),
+          fields: JSON.stringify([
+            "name",
+            "employee_name",
+            "posting_date",
+            "total_claimed_amount",
+            "approval_status",
+          ]),
+          order_by: "posting_date desc",
+          limit_page_length: 50,
+        });
+
+        setClaimsToApprove(approvalData || []);
+      } catch (err) {
+        console.error("Error fetching expense claims:", err);
+        setError("Failed to load expense claims.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [currentEmployeeId, statusFilter]
+  );
 
   useEffect(() => {
     fetchClaims();
   }, [fetchClaims]);
 
-  if (loading) {
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchClaims(true);
+  };
+
+  const handleItemPress = (item) => {
+    Alert.alert(
+      "Claim Details",
+      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`
+    );
+  };
+
+  const renderItem = ({ item }) => {
+    const status = item.approval_status || "Draft";
+    const statusColor = statusToColorMap[status]?.bg || "#f0f2f5";
+    const statusTextColor = statusToColorMap[status]?.text || "#333";
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleItemPress(item)}
+      >
+        <View style={styles.cardRow}>
+          <View style={styles.iconContainer}>
+            <Wallet size={20} color="#555" />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.employeeName}>
+              {activeTab === "approvals" ? item.employee_name : item.name}
+            </Text>
+            <Text style={styles.dateText}>{formatDate(item.posting_date)}</Text>
+            <Text style={styles.amountText}>
+              ₹ {parseFloat(item.total_claimed_amount || 0).toFixed(2)}
+            </Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Text style={[styles.statusText, { color: statusTextColor }]}>
+              {status}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.toolbar}>
+        {/* Tabs for My Claims vs Approvals */}
+        <View style={styles.viewToggles}>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "my_claims" && styles.activeTabButton,
+            ]}
+            onPress={() => setActiveTab("my_claims")}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                activeTab === "my_claims" && styles.activeTabButtonText,
+              ]}
+            >
+              My Claims
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "approvals" && styles.activeTabButton,
+            ]}
+            onPress={() => setActiveTab("approvals")}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                activeTab === "approvals" && styles.activeTabButtonText,
+              ]}
+            >
+              Approvals
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowNewModal(true)}
+        >
+          <Plus size={16} color="#fff" />
+          <Text style={styles.addButtonText}>New Claim</Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === "my_claims" && (
+        <View style={styles.filterContainer}>
+          <Text style={styles.filterLabel}>Filter:</Text>
+          <View style={styles.selectedBadge}>
+            <Text style={styles.selectedBadgeText}>{statusFilter}</Text>
+          </View>
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={statusFilter}
+              onValueChange={setStatusFilter}
+              style={styles.picker}
+              mode="dropdown"
+              dropdownIconColor="#271085"
+              prompt="Status"
+            >
+              <Picker.Item label="All" value="All" style={styles.pickerItem} />
+              <Picker.Item
+                label="Draft"
+                value="Draft"
+                style={styles.pickerItem}
+              />
+              <Picker.Item
+                label="Submitted"
+                value="Submitted"
+                style={styles.pickerItem}
+              />
+            </Picker>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.listHeaderBar}>
+        <View style={styles.listHeaderLeft}>
+          <ListIcon size={18} color="orange" />
+          <Text style={styles.listHeaderTitle}>
+            {activeTab === "my_claims" ? "My Claims List" : "Pending Approvals"}
+          </Text>
+        </View>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {activeTab === "my_claims"
+              ? myClaims.length
+              : claimsToApprove.length}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const activeData = activeTab === "my_claims" ? myClaims : claimsToApprove;
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007bff" />
@@ -96,151 +278,256 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
-        <Button title="Retry" onPress={fetchClaims} />
+        <Button title="Retry" onPress={() => fetchClaims()} color="#007bff" />
       </View>
     );
   }
 
-  const renderTableHeader = () => (
-    <View style={styles.tableHeader}>
-      <Text style={styles.colDate}>Date</Text>
-      <Text style={styles.colAmount}>Amount</Text>
-      <Text style={styles.colStatus}>Status</Text>
-    </View>
-  );
-
-  const renderClaimRows = (claims, isForApproval = false) => {
-    return claims.map((claim) => (
-      <View key={claim.name} style={styles.row}>
-        <Text style={styles.colDate}>
-          {new Date(claim.posting_date).toLocaleDateString()}
-        </Text>
-        <Text style={styles.colAmount}>
-          ₹ {claim.total_claimed_amount.toFixed(2)}
-        </Text>
-        <Text style={styles.colStatus}>
-          {isForApproval ? `${claim.employee_name}` : claim.approval_status}
-        </Text>
-      </View>
-    ));
-  };
-
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Expense Claims</Text>
-        <TouchableOpacity style={styles.newButton} onPress={() => setShowNewModal(true)}>
-          <MaterialIcons name="add" size={20} color="#fff" />
-
-          <Text style={styles.newButtonText}>New</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.filterRow}>
-        <Text style={styles.filterLabel}>Filter My Claims:</Text>
-        <Picker
-          selectedValue={statusFilter}
-          onValueChange={setStatusFilter}
-          style={[styles.statusPicker, isSmall && { width: 180 }]}
-        >
-          <Picker.Item label="All" value="All" />
-          <Picker.Item label="Draft" value="Draft" />
-          <Picker.Item label="Submitted" value="Submitted" />
-        </Picker>
-      </View>
-
-      <Text style={styles.subTitle}>My Expense Claims</Text>
-      {myClaims.length === 0 ? (
-        <Text style={styles.noData}>No claims found.</Text>
-      ) : (
-        <>
-          {renderTableHeader()}
-          {renderClaimRows(myClaims)}
-        </>
-      )}
-
-      <Text style={styles.subTitle}>Claims Pending for My Approval</Text>
-      {claimsToApprove.length === 0 ? (
-        <Text style={styles.noData}>No pending approvals.</Text>
-      ) : (
-        <>
-          {renderTableHeader()}
-          {renderClaimRows(claimsToApprove, true)}
-        </>
-      )}
-      <DoctypeFormModal visible={showNewModal} onClose={() => setShowNewModal(false)} doctype="Expense Claim" title="Expense Claim" />
-    </ScrollView>
+    <View style={styles.container}>
+      <FlatList
+        data={activeData}
+        keyExtractor={(item) => item.name}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={renderHeader}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {activeTab === "my_claims"
+                ? "No expense claims found."
+                : "No pending approvals."}
+            </Text>
+          </View>
+        }
+      />
+      <DoctypeFormModal
+        visible={showNewModal}
+        onClose={() => setShowNewModal(false)}
+        doctype="Expense Claim"
+        title="Expense Claim"
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f0f2f5", padding: 15 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 10, fontSize: 16, color: "#333" },
-  errorText: { color: "red", marginBottom: 10 },
-  noData: {
-    textAlign: "center",
-    marginTop: 10,
-    fontSize: 14,
-    color: "#888",
-    marginBottom: 20,
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f7fa", // Match AttendanceScreen
+    padding: 16,
   },
-  sectionHeader: {
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f7fa",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#333",
+  },
+  errorText: {
+    color: "red",
+    marginBottom: 10,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  headerContainer: {
+    marginBottom: 10,
+  },
+  toolbar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
+    flexWrap: "wrap",
+    gap: 10,
   },
-  sectionTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
-  newButton: {
+  viewToggles: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#007bff",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  newButtonText: { color: "#fff", marginLeft: 5, fontWeight: "bold" },
-  filterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  filterLabel: { fontSize: 16, marginRight: 10 },
-  statusPicker: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
     flex: 1,
-    height: 40,
-    backgroundColor: "#fff",
-    borderRadius: 6,
+    marginRight: 8,
   },
-  subTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#444",
-    marginTop: 25,
-    marginBottom: 10,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: "#dee2e6",
+  tabButton: {
+    flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    alignItems: "center",
     borderRadius: 6,
-    marginBottom: 5,
   },
-  row: {
+  activeTabButton: {
+    backgroundColor: "#271085",
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+  },
+  activeTabButtonText: {
+    color: "#fff",
+  },
+  addButton: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    borderRadius: 6,
-    marginBottom: 5,
+    alignItems: "center",
+    backgroundColor: "#271085",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
   },
-  colDate: { flex: 1, fontSize: 14, color: "#333" },
-  colAmount: { flex: 1, fontSize: 14, color: "#444", textAlign: "center" },
-  colStatus: { flex: 1, fontSize: 14, color: "#007bff", textAlign: "right" },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  filterContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+    marginLeft: 10,
+    marginRight: 10,
+  },
+  selectedBadge: {
+    backgroundColor: "#e9ecef",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 10,
+  },
+  selectedBadgeText: {
+    color: "#333",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  pickerWrapper: {
+    flex: 1,
+  },
+  picker: {
+    height: 60,
+    width: "100%",
+  },
+  pickerItem: {
+    fontSize: 14,
+    padding: 2,
+  },
+  listHeaderBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#e9ecef",
+    padding: 12,
+    borderRadius: 8,
+  },
+  listHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  listHeaderTitle: {
+    fontWeight: "600",
+    fontSize: 14,
+    color: "#333",
+  },
+  badge: {
+    backgroundColor: "#271085",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    marginBottom: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#eee",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f0f0f0",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  cardContent: {
+    flex: 1,
+  },
+  employeeName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  dateText: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  amountText: {
+    fontSize: 12,
+    color: "#333",
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: "#777",
+    fontStyle: "italic",
+  },
 });
 
 export default ExpenseClaimScreen;

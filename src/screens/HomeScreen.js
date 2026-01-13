@@ -272,6 +272,15 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
     })();
   }, []);
 
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#271085" />
+        <Text style={{ marginTop: 10, color: "#666" }}>Loading profile...</Text>
+      </View>
+    );
+  }
+
   if (!employeeProfile) {
     return (
       <View style={styles.centered}>
@@ -440,12 +449,12 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickIconItem}
-            onPress={() => navigation.navigate("Survey")}
+            onPress={() => navigation.navigate("Leave")}
           >
             <View style={styles.quickIconCircle}>
-              <ClipboardList size={22} color="#fff" />
+              <MaterialIcons name="event-note" size={22} color="#fff" />
             </View>
-            <Text style={styles.quickIconLabel}>Survey</Text>
+            <Text style={styles.quickIconLabel}>Leave</Text>
           </TouchableOpacity>
         </View>
       </View>

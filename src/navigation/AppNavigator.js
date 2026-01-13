@@ -41,6 +41,77 @@ const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
 const Stack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
+
+// Stack for Home tab (includes Expense Claim, Shift Roaster, etc.)
+function HomeStack({
+  navigation,
+  currentUserEmail,
+  currentEmployeeId,
+  onLogout,
+}) {
+  const screenOptions = createSharedOptions(onLogout);
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen name="HomeMain" options={{ title: "Home" }}>
+        {(props) => (
+          <HomeScreen
+            {...props}
+            currentUserEmail={currentUserEmail}
+            currentEmployeeId={currentEmployeeId}
+            onLogout={onLogout}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen
+        name="Expense Claim"
+        options={({ navigation }) => ({
+          title: "Expense Claim",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <ChevronLeft size={28} color="#000" />
+            </TouchableOpacity>
+          ),
+        })}
+      >
+        {(props) => (
+          <ExpenseClaimScreen
+            {...props}
+            currentUserEmail={currentUserEmail}
+            currentEmployeeId={currentEmployeeId}
+            onLogout={onLogout}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen
+        name="Shift Roaster"
+        options={({ navigation }) => ({
+          title: "Shift Roaster",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <ChevronLeft size={28} color="#000" />
+            </TouchableOpacity>
+          ),
+        })}
+      >
+        {(props) => (
+          <ShiftDetailsScreen
+            {...props}
+            currentUserEmail={currentUserEmail}
+            currentEmployeeId={currentEmployeeId}
+            onLogout={onLogout}
+          />
+        )}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
 // Stack for Approval and related screens
 function ApprovalStack({
   navigation,
@@ -80,11 +151,12 @@ function BottomTabs({
       <Tab.Screen
         name="Home"
         options={{
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       >
         {(props) => (
-          <HomeScreen
+          <HomeStack
             {...props}
             currentUserEmail={currentUserEmail}
             currentEmployeeId={currentEmployeeId}
@@ -273,27 +345,6 @@ export default function AppNavigator({
       </RootStack.Screen>
 
       {/* 🔥 HIDDEN BUT NAVIGABLE */}
-      <RootStack.Screen name="Expense Claim">
-        {(props) => (
-          <ExpenseClaimScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </RootStack.Screen>
-
-      <RootStack.Screen name="Shift Roaster">
-        {(props) => (
-          <ShiftDetailsScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </RootStack.Screen>
     </RootStack.Navigator>
   );
 }

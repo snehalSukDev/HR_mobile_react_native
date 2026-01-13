@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,30 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Platform,
+  ToastAndroid,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { getMetaData, fnSearchLink, saveDoc } from "../utils/frappeApi";
+import {
+  getMetaData,
+  fnSearchLink,
+  getResource,
+  saveDoc,
+  submitSavedDoc,
+} from "../utils/frappeApi";
 import { Formik } from "formik";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
 import { Alert } from "react-native";
 
-const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
+const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
   const [fields, setFields] = useState([]);
   const [linkResults, setLinkResults] = useState({});
   const [dropdownOpen, setDropdownOpen] = useState({});
   const [datePickerField, setDatePickerField] = useState(null);
+  const [invalidFields, setInvalidFields] = useState({});
+  const scrollRef = useRef(null);
+  const positionsRef = useRef({});
 
   useEffect(() => {
     async function loadMeta() {
@@ -37,7 +48,9 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
             "Check",
             "Small Text",
             "Text",
-          ].includes(f.fieldtype) && !f.hidden
+          ].includes(f.fieldtype) &&
+          !f.hidden &&
+          !["amended_from", "naming_series"].includes(f.fieldname)
       );
       setFields(filtered);
     }
@@ -46,7 +59,11 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
 
   const initialValues = {};
   fields.forEach((f) => {
-    initialValues[f.fieldname] = "";
+    if (f.fieldtype === "Date" && f.fieldname === "posting_date") {
+      initialValues[f.fieldname] = format(new Date(), "yyyy-MM-dd");
+    } else {
+      initialValues[f.fieldname] = "";
+    }
   });
 
   return (
@@ -68,6 +85,38 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
             initialValues={initialValues}
             enableReinitialize
             onSubmit={async (values, { setSubmitting }) => {
+              const missing = [];
+              fields.forEach((f) => {
+                if (f.reqd) {
+                  const v = values[f.fieldname];
+                  let empty = false;
+                  if (f.fieldtype === "Check") {
+                    empty = v !== true;
+                  } else if (v == null) {
+                    empty = true;
+                  } else if (typeof v === "string") {
+                    empty = v.trim().length === 0;
+                  }
+                  if (empty) missing.push(f.fieldname);
+                }
+              });
+              if (missing.length > 0) {
+                const nextInvalid = {};
+                missing.forEach((k) => (nextInvalid[k] = true));
+                setInvalidFields(nextInvalid);
+                const first = missing[0];
+                const y = positionsRef.current[first] ?? 0;
+                if (scrollRef.current && typeof y === "number") {
+                  scrollRef.current.scrollTo({
+                    y: Math.max(y - 12, 0),
+                    animated: true,
+                  });
+                }
+                setSubmitting(false);
+                return;
+              } else {
+                setInvalidFields({});
+              }
               const tempName = `new-${doctype
                 .toLowerCase()
                 .replace(/ /g, "-")}-${Date.now()}`;
@@ -89,12 +138,30 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                   // status: "Open",
                 };
 
-                await saveDoc(doc);
+                const saved = await saveDoc(doc);
 
-                Alert.alert("Success", `${doctype} saved successfully`);
+                if (doctype === "Attendance Request") {
+                  await submitSavedDoc(saved, doc);
+                }
+
+                Alert.alert(
+                  "Success",
+                  doctype === "Attendance Request"
+                    ? `${doctype} submitted successfully`
+                    : `${doctype} saved successfully`
+                );
+                if (typeof onSuccess === "function") {
+                  onSuccess({ saved, tempDoc: doc, doctype });
+                }
                 onClose();
               } catch (err) {
-                Alert.alert("Error", err.message);
+                const serverText =
+                  (err && err.serverMessagesText) || err.message || String(err);
+                if (Platform.OS === "android") {
+                  ToastAndroid.show(serverText, ToastAndroid.LONG);
+                } else {
+                  Alert.alert("Error", serverText);
+                }
               } finally {
                 setSubmitting(false);
               }
@@ -102,7 +169,7 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
           >
             {({ values, setFieldValue, handleSubmit }) => (
               <>
-                <ScrollView style={styles.modalBody}>
+                <ScrollView style={styles.modalBody} ref={scrollRef}>
                   {fields.length === 0 ? (
                     <View style={styles.noDataContainer}>
                       <MaterialIcons
@@ -123,13 +190,26 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                           : [];
                       if (f.fieldtype === "Check") {
                         return (
-                          <View key={f.fieldname} style={styles.formField}>
+                          <View
+                            key={f.fieldname}
+                            style={styles.formField}
+                            onLayout={(e) => {
+                              positionsRef.current[f.fieldname] =
+                                e.nativeEvent.layout.y;
+                            }}
+                          >
                             <Text style={styles.formLabel}>
                               {f.label} {f.reqd ? "*" : ""}
                             </Text>
                             <TouchableOpacity
                               style={styles.checkField}
-                              onPress={() => setFieldValue(f.fieldname, !value)}
+                              onPress={() => {
+                                setFieldValue(f.fieldname, !value);
+                                setInvalidFields((prev) => ({
+                                  ...prev,
+                                  [f.fieldname]: false,
+                                }));
+                              }}
                             >
                               <MaterialIcons
                                 name={
@@ -147,11 +227,24 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                       }
                       if (f.fieldtype === "Select" && options.length > 0) {
                         return (
-                          <View key={f.fieldname} style={styles.formField}>
+                          <View
+                            key={f.fieldname}
+                            style={styles.formField}
+                            onLayout={(e) => {
+                              positionsRef.current[f.fieldname] =
+                                e.nativeEvent.layout.y;
+                            }}
+                          >
                             <Text style={styles.formLabel}>
                               {f.label} {f.reqd ? "*" : ""}
                             </Text>
-                            <View style={styles.selectField}>
+                            <View
+                              style={[
+                                styles.selectField,
+                                invalidFields[f.fieldname] &&
+                                  styles.inputFieldError,
+                              ]}
+                            >
                               {options.map((opt) => (
                                 <TouchableOpacity
                                   key={opt}
@@ -159,9 +252,13 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                                     styles.optionPill,
                                     value === opt && styles.optionPillActive,
                                   ]}
-                                  onPress={() =>
-                                    setFieldValue(f.fieldname, opt)
-                                  }
+                                  onPress={() => {
+                                    setFieldValue(f.fieldname, opt);
+                                    setInvalidFields((prev) => ({
+                                      ...prev,
+                                      [f.fieldname]: false,
+                                    }));
+                                  }}
                                 >
                                   <Text
                                     style={[
@@ -183,24 +280,52 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                         f.options
                       ) {
                         return (
-                          <View key={f.fieldname} style={styles.formField}>
+                          <View
+                            key={f.fieldname}
+                            style={styles.formField}
+                            onLayout={(e) => {
+                              positionsRef.current[f.fieldname] =
+                                e.nativeEvent.layout.y;
+                            }}
+                          >
                             <Text style={styles.formLabel}>
                               {f.label} {f.reqd ? "*" : ""}
                             </Text>
                             <TextInput
-                              style={styles.inputField}
+                              style={[
+                                styles.inputField,
+                                invalidFields[f.fieldname] &&
+                                  styles.inputFieldError,
+                              ]}
                               value={String(value)}
-                              onFocus={() =>
+                              onFocus={() => {
                                 setDropdownOpen((prev) => {
                                   const next = {};
                                   Object.keys(prev).forEach(
                                     (k) => (next[k] = false)
                                   );
                                   return { ...next, [f.fieldname]: true };
-                                })
-                              }
+                                });
+                                (async () => {
+                                  const res = await fnSearchLink(
+                                    String(value || ""),
+                                    f.options,
+                                    0,
+                                    doctype,
+                                    { query: "", filters: {} }
+                                  );
+                                  setLinkResults((prev) => ({
+                                    ...prev,
+                                    [f.fieldname]: res,
+                                  }));
+                                })();
+                              }}
                               onChangeText={async (t) => {
                                 setFieldValue(f.fieldname, t);
+                                setInvalidFields((prev) => ({
+                                  ...prev,
+                                  [f.fieldname]: false,
+                                }));
                                 const res = await fnSearchLink(
                                   t,
                                   f.options,
@@ -224,13 +349,28 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                                 <View style={styles.dropdownList}>
                                   {(linkResults[f.fieldname] || []).map(
                                     (item) => {
-                                      const val = item?.value ?? item;
+                                      const rawVal =
+                                        (item && typeof item === "object"
+                                          ? item.value ||
+                                            item.name ||
+                                            item.id ||
+                                            item.label
+                                          : item) ?? "";
+                                      const val =
+                                        typeof rawVal === "string"
+                                          ? rawVal
+                                          : String(rawVal);
                                       const label =
-                                        (item?.description &&
+                                        (item &&
+                                          typeof item === "object" &&
+                                          typeof item.description ===
+                                            "string" &&
                                           item.description.trim()) ||
-                                        (typeof val === "string"
-                                          ? val
-                                          : String(val));
+                                        (item &&
+                                          typeof item === "object" &&
+                                          typeof item.label === "string" &&
+                                          item.label) ||
+                                        val;
                                       return (
                                         <TouchableOpacity
                                           key={`${f.fieldname}-${val}`}
@@ -241,6 +381,28 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                                           ]}
                                           onPress={() => {
                                             setFieldValue(f.fieldname, val);
+                                            setInvalidFields((prev) => ({
+                                              ...prev,
+                                              [f.fieldname]: false,
+                                            }));
+                                            if (f.fieldname === "employee") {
+                                              (async () => {
+                                                try {
+                                                  const emp = await getResource(
+                                                    "Employee",
+                                                    val
+                                                  );
+                                                  const empName =
+                                                    emp?.employee_name || "";
+                                                  if (empName) {
+                                                    setFieldValue(
+                                                      "employee_name",
+                                                      empName
+                                                    );
+                                                  }
+                                                } catch {}
+                                              })();
+                                            }
                                             setDropdownOpen((prev) => ({
                                               ...prev,
                                               [f.fieldname]: false,
@@ -267,12 +429,23 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                       }
                       if (f.fieldtype === "Date") {
                         return (
-                          <View key={f.fieldname} style={styles.formField}>
+                          <View
+                            key={f.fieldname}
+                            style={styles.formField}
+                            onLayout={(e) => {
+                              positionsRef.current[f.fieldname] =
+                                e.nativeEvent.layout.y;
+                            }}
+                          >
                             <Text style={styles.formLabel}>
                               {f.label} {f.reqd ? "*" : ""}
                             </Text>
                             <TouchableOpacity
-                              style={styles.inputField}
+                              style={[
+                                styles.inputField,
+                                invalidFields[f.fieldname] &&
+                                  styles.inputFieldError,
+                              ]}
                               onPress={() => {
                                 setDropdownOpen({});
                                 setDatePickerField(f.fieldname);
@@ -293,6 +466,10 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                                       "yyyy-MM-dd"
                                     );
                                     setFieldValue(f.fieldname, formatted);
+                                    setInvalidFields((prev) => ({
+                                      ...prev,
+                                      [f.fieldname]: false,
+                                    }));
                                   }
                                   setDatePickerField(null);
                                 }}
@@ -302,12 +479,23 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                         );
                       }
                       return (
-                        <View key={f.fieldname} style={styles.formField}>
+                        <View
+                          key={f.fieldname}
+                          style={styles.formField}
+                          onLayout={(e) => {
+                            positionsRef.current[f.fieldname] =
+                              e.nativeEvent.layout.y;
+                          }}
+                        >
                           <Text style={styles.formLabel}>
                             {f.label} {f.reqd ? "*" : ""}
                           </Text>
                           <TextInput
-                            style={styles.inputField}
+                            style={[
+                              styles.inputField,
+                              invalidFields[f.fieldname] &&
+                                styles.inputFieldError,
+                            ]}
                             value={String(value)}
                             onFocus={() =>
                               setDropdownOpen((prev) => {
@@ -318,7 +506,13 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title }) => {
                                 return next;
                               })
                             }
-                            onChangeText={(t) => setFieldValue(f.fieldname, t)}
+                            onChangeText={(t) => {
+                              setFieldValue(f.fieldname, t);
+                              setInvalidFields((prev) => ({
+                                ...prev,
+                                [f.fieldname]: false,
+                              }));
+                            }}
                             placeholder={f.placeholder || f.label}
                             keyboardType={
                               f.fieldtype === "Int" || f.fieldtype === "Float"
@@ -407,6 +601,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#343a40",
     backgroundColor: "#fff",
+  },
+  inputFieldError: {
+    borderColor: "#dc3545",
+    borderWidth: 1,
   },
   selectField: {
     flexDirection: "row",

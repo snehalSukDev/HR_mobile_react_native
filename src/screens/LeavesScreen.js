@@ -483,6 +483,9 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       <DoctypeFormModal
         visible={showApplyModal}
         onClose={() => setShowApplyModal(false)}
+        onSuccess={() => {
+          fetchLeaveData(true);
+        }}
         doctype={doctype}
         title="Leave Application"
       />

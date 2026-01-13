@@ -34,14 +34,14 @@ import {
   ShieldAlert,
 } from "lucide-react-native";
 
-const TABS = ["Details", "Attendance", "Leaves", "More"];
+const TABS = ["Details"];
 
 const ProfileScreen = ({ currentUserEmail, onLogout }) => {
   const [employeeProfile, setEmployeeProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("Details");
-  const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(true);
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -147,24 +147,7 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
         </View>
 
         {/* ================= TABS ================= */}
-        <View style={styles.tabBar}>
-          {TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tabItem, activeTab === tab && styles.activeTab]}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab && styles.activeTabText,
-                ]}
-              >
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <View style={styles.tabBar}></View>
 
         {/* ================= TAB CONTENT ================= */}
         {activeTab === "Details" && (
@@ -211,6 +194,21 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
                   <Text style={styles.detailLabel}>Department</Text>
                   <Text style={styles.detailValue}>
                     {employeeProfile.department || "N/A"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.detailItem}>
+              <View style={styles.detailRow}>
+                <View style={styles.detailIcon}>
+                  <Building2 size={14} color="#0C8DB6" />
+                </View>
+
+                <View style={styles.detailText}>
+                  <Text style={styles.detailLabel}>Company</Text>
+                  <Text style={styles.detailValue}>
+                    {employeeProfile.company || "N/A"}
                   </Text>
                 </View>
               </View>
@@ -347,13 +345,15 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
-  container: { padding: 15, backgroundColor: "#f0f2f5" },
+  container: { padding: 16, backgroundColor: "#f5f7fa" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
 
   profileCard: {
     backgroundColor: "#fff",
     borderRadius: 14,
     padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#e9ecef",
   },
 
   profileHeader: {
@@ -391,9 +391,9 @@ const styles = StyleSheet.create({
   },
 
   tabItem: {
-    flex: 1,
     paddingVertical: 10,
-    alignItems: "center",
+    paddingHorizontal: 12, // 👈 spacing from left
+    alignItems: "flex-start", // 👈 left align text
   },
 
   activeTab: {
@@ -404,6 +404,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 13,
     color: "#777",
+    textAlign: "left",
   },
 
   activeTabText: {
@@ -420,9 +421,11 @@ const styles = StyleSheet.create({
   detailItem: {
     width: "48%",
     marginBottom: 14,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#fff",
     borderRadius: 10,
-    padding: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
   },
 
   detailRow: {

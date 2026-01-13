@@ -52,10 +52,19 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const [monthAttendanceList, setMonthAttendanceList] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewType, setViewType] = useState("calender");
+  const [viewType, setViewType] = useState("list");
   const [selectedAttendanceDetails, setSelectedAttendanceDetails] =
     useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [dayModalVisible, setDayModalVisible] = useState(false);
+  const [dayModalData, setDayModalData] = useState({
+    date: "",
+    status: "",
+    title: "",
+    employeeName: "",
+    description: "",
+  });
   const today = useMemo(() => new Date(), []);
   const [calendarMonth, setCalendarMonth] = useState(() => ({
     year: today.getFullYear(),
@@ -65,6 +74,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
     today.toISOString().split("T")[0]
   );
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [loadedCalendarMonthKey, setLoadedCalendarMonthKey] = useState(null);
 
   const calendarCurrent = useMemo(() => {
     return `${calendarMonth.year}-${String(calendarMonth.month).padStart(
@@ -143,11 +153,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
     async (monthInfo, isRefresh = false) => {
       if (!currentEmployeeId) {
         if (isRefresh) setRefreshing(false);
-        else setLoading(false);
+        else setCalendarLoading(false);
         return;
       }
 
-      if (!isRefresh) setLoading(true);
+      if (!isRefresh) setCalendarLoading(true);
 
       const { start, end } = getMonthRange(monthInfo);
 
@@ -168,11 +178,12 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           limit_page_length: 500,
         });
         setMonthAttendanceList(data || []);
+        setLoadedCalendarMonthKey(`${monthInfo.year}-${monthInfo.month}`);
       } catch (error) {
         console.error("Error fetching month attendance:", error);
         Alert.alert("Error", "Failed to fetch monthly attendance.");
       } finally {
-        setLoading(false);
+        setCalendarLoading(false);
         setRefreshing(false);
       }
     },
@@ -181,8 +192,17 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
 
   useEffect(() => {
     if (normalizedViewType !== "calendar") return;
+    const key = `${calendarMonth.year}-${calendarMonth.month}`;
+    if (loadedCalendarMonthKey === key && monthAttendanceList.length > 0)
+      return;
     fetchMonthAttendance(calendarMonth);
-  }, [fetchMonthAttendance, normalizedViewType]);
+  }, [
+    fetchMonthAttendance,
+    normalizedViewType,
+    calendarMonth,
+    loadedCalendarMonthKey,
+    monthAttendanceList.length,
+  ]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -357,7 +377,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
     </View>
   );
 
-  if (loading && !refreshing) {
+  if (loading && !refreshing && normalizedViewType === "list") {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007bff" />
@@ -387,21 +407,21 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               if (!status) return;
               const title = statusToColorMap[status]?.title || status;
               const desc = holiday?.description
-                ? `\n${holiday.description.replace(/<[^>]+>/g, "").trim()}`
+                ? holiday.description.replace(/<[^>]+>/g, "").trim()
                 : "";
-              Alert.alert(
-                "Day Details",
-                `${key}\n${title}${
-                  attendance?.employee_name
-                    ? `\n${attendance.employee_name}`
-                    : ""
-                }${desc}`
-              );
+              setDayModalData({
+                date: key,
+                status,
+                title,
+                employeeName: attendance?.employee_name || "",
+                description: desc,
+              });
+              setDayModalVisible(true);
             }}
             onMonthChange={(m) => {
               const next = { year: m.year, month: m.month };
               setCalendarMonth(next);
-              fetchMonthAttendance(next);
+              // rely on effect to fetch; avoids double fetch and global re-render
             }}
             style={styles.calendarStyle}
             theme={{
@@ -409,6 +429,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               arrowColor: "#007bff",
             }}
           />
+          {calendarLoading && (
+            <View style={{ paddingVertical: 12 }}>
+              <ActivityIndicator size="small" color="#007bff" />
+            </View>
+          )}
           <View style={styles.legendContainer}>
             {Object.keys(statusToColorMap).map((key) => (
               <View key={key} style={styles.legendItem}>
@@ -422,6 +447,65 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               </View>
             ))}
           </View>
+          <Modal
+            visible={dayModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setDayModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Day Details</Text>
+                  <TouchableOpacity
+                    style={styles.modalCloseButton}
+                    onPress={() => setDayModalVisible(false)}
+                  >
+                    <Text style={styles.modalCloseText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.modalBody}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Date</Text>
+                    <Text style={styles.detailValue}>{dayModalData.date}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Status</Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor:
+                            statusToColorMap[dayModalData.status]?.bg ||
+                            "#f0f2f5",
+                        },
+                      ]}
+                    >
+                      <Text style={styles.statusText}>
+                        {dayModalData.title || dayModalData.status}
+                      </Text>
+                    </View>
+                  </View>
+                  {dayModalData.employeeName ? (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Employee</Text>
+                      <Text style={styles.detailValue}>
+                        {dayModalData.employeeName}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {dayModalData.description ? (
+                    <View style={{ paddingTop: 10 }}>
+                      <Text style={styles.detailLabel}>Notes</Text>
+                      <Text style={styles.dayDesc}>
+                        {dayModalData.description}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          </Modal>
         </>
       ) : (
         <FlatList
@@ -490,6 +574,12 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
       <DoctypeFormModal
         visible={showApplyModal}
         onClose={() => setShowApplyModal(false)}
+        onSuccess={() => {
+          fetchRecentAttendance(true);
+          if (normalizedViewType === "calendar") {
+            fetchMonthAttendance(calendarMonth, true);
+          }
+        }}
         doctype={"Attendance Request"}
         title="Attendance Request"
       />
@@ -746,6 +836,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
     textAlign: "right",
+  },
+  dayDesc: {
+    marginTop: 6,
+    color: "#333",
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
 

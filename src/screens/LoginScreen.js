@@ -27,6 +27,7 @@ const bgImage = require("../assests/login/bg3.png");
 
 const LoginScreen = ({ onLoginSuccess }) => {
   const [frappeUrl, setFrappeUrl] = useState(getFrappeBaseUrl());
+  const [siteName, setSiteName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -53,9 +54,19 @@ const LoginScreen = ({ onLoginSuccess }) => {
     ).start();
   }, []);
 
+  const normalizeSite = (s) =>
+    (s || "")
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "")
+      .trim();
+
+  useEffect(() => {
+    setSiteName(normalizeSite(frappeUrl));
+  }, [frappeUrl]);
+
   const handleLogin = async () => {
-    if (!frappeUrl) {
-      Alert.alert("Validation Error", "Please enter Frappe URL.");
+    if (!siteName) {
+      Alert.alert("Validation Error", "Please enter site name.");
       return;
     }
     if (!email || !password) {
@@ -65,7 +76,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
     try {
       setLoading(true);
-      setFrappeBaseUrl(frappeUrl);
+      const fullUrl = `https://${normalizeSite(siteName)}`;
+      setFrappeBaseUrl(fullUrl);
       const res = await loginUser(email, password);
       if (res?.message === "Logged In") {
         onLoginSuccess();
@@ -110,16 +122,21 @@ const LoginScreen = ({ onLoginSuccess }) => {
               <Text style={styles.appTitle}>Techbird HR</Text>
               <Text style={styles.loginTitle}>Login to Your Account</Text>
 
-              <TextInput
-                style={styles.input}
-                placeholder="Enter URL (e.g. https://glsdemo.techbirdit.in)"
-                placeholderTextColor="#999"
-                autoCapitalize="none"
-                keyboardType="url"
-                value={frappeUrl}
-                onChangeText={setFrappeUrl}
-                editable={!loading}
-              />
+              <View style={styles.urlRow}>
+                <View style={styles.urlPrefix}>
+                  <Text style={styles.urlPrefixText}>https://</Text>
+                </View>
+                <TextInput
+                  style={styles.urlInput}
+                  placeholder="yourdomain.com"
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                  keyboardType="url"
+                  value={siteName}
+                  onChangeText={(t) => setSiteName(normalizeSite(t))}
+                  editable={!loading}
+                />
+              </View>
 
               {/* Email */}
               <TextInput
@@ -208,6 +225,32 @@ const styles = StyleSheet.create({
     elevation: 6,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.25)",
+  },
+
+  urlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  urlPrefix: {
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    backgroundColor: "#f5f7fa",
+    borderRightWidth: 1,
+    borderRightColor: "#eee",
+  },
+  urlPrefixText: {
+    color: "#333",
+    fontWeight: "600",
+  },
+  urlInput: {
+    flex: 1,
+    padding: 14,
   },
 
   appTitle: {

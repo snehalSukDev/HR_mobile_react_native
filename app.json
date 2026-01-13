@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "frappe-hrms",
-    "slug": "frappe-hrms",
+    "name": "TechbirdHRMS",
+    "slug": "techbirdhrms",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "",
+    "icon": "./src/assests/techbirdlogonew.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "",
+      "image": "./src/assests/techbirdlogonew.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,13 +18,13 @@
     "android": {
       "package": "in.techbirdit.frappehrms",
       "adaptiveIcon": {
-        "foregroundImage": "",
+        "foregroundImage": "./src/assests/techbirdlogonew.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": ""
+      "favicon": "./src/assests/techbirdlogonew.png"
     },
     "extra": {
       "eas": {

@@ -117,6 +117,35 @@ export async function loginUser(email, password) {
   }
 }
 
+export function parseFrappeServerMessages(raw) {
+  try {
+    if (!raw) return "";
+    const arr = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!Array.isArray(arr)) return "";
+    const parts = arr
+      .map((item) => {
+        try {
+          const obj = typeof item === "string" ? JSON.parse(item) : item || {};
+          const text = obj.message || obj.title || "";
+          // remove HTML tags/backticks
+          return String(text)
+            .replace(/<[^>]*>/g, "")
+            .replace(/`/g, "")
+            .trim();
+        } catch {
+          return String(item)
+            .replace(/<[^>]*>/g, "")
+            .replace(/`/g, "")
+            .trim();
+        }
+      })
+      .filter(Boolean);
+    return parts.join("\n");
+  } catch {
+    return "";
+  }
+}
+
 // Get currently logged-in user's email
 export async function getCurrentUser() {
   try {
@@ -243,7 +272,10 @@ export async function callFrappeMethod(method, args = {}) {
       (typeof data?._server_messages === "string" && data._server_messages) ||
       error?.message ||
       `Request failed${status ? ` with status ${status}` : ""}`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.serverMessagesText = parseFrappeServerMessages(data?._server_messages);
+    err.raw = data;
+    throw err;
   }
 }
 
@@ -354,12 +386,65 @@ export async function saveDoc(doc) {
       }
     );
 
+    return res.data;
+  } catch (error) {
+    const data = error?.response?.data;
+    console.error("Save Doc Error:", data || error);
+    const err = new Error(
+      (typeof data?.message === "string" && data.message) ||
+        "Failed to save document"
+    );
+    err.serverMessagesText = parseFrappeServerMessages(data?._server_messages);
+    err.raw = data;
+    throw err;
+  }
+}
+
+export async function submitSavedDoc(saved, fallbackDoc) {
+  const base =
+    (saved && typeof saved === "object" && saved) ||
+    (fallbackDoc && typeof fallbackDoc === "object" && fallbackDoc) ||
+    {};
+  const payload =
+    (Array.isArray(base.docs) && base.docs[0]
+      ? base.docs[0]
+      : base.doc ||
+        (base.message &&
+          ((Array.isArray(base.message.docs) && base.message.docs[0]) ||
+            base.message.doc)) ||
+        base) || {};
+  const minimal = {
+    doctype: payload.doctype || fallbackDoc?.doctype || "",
+    name: payload.name || "",
+  };
+  if (!minimal.doctype || !minimal.name) {
+    throw new Error("Cannot submit document: missing doctype or name");
+  }
+
+  try {
+    const res = await axiosInstance.post(
+      "/api/method/frappe.desk.form.save.savedocs",
+      qs.stringify({
+        doc: JSON.stringify(minimal),
+        action: "Submit",
+      }),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
     return res.data?.message;
   } catch (error) {
-    console.error("Save Doc Error:", error?.response?.data || error);
-    throw new Error(
-      error?.response?.data?.message || "Failed to save document"
+    const data = error?.response?.data;
+    console.error("Submit Doc Error:", data || error);
+    const err = new Error(
+      (typeof data?.message === "string" && data.message) ||
+        "Failed to submit document"
     );
+    err.serverMessagesText = parseFrappeServerMessages(data?._server_messages);
+    err.raw = data;
+    throw err;
   }
 }
 

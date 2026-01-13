@@ -244,7 +244,7 @@ export const createSharedOptions = (onLogout) => {
         onPress={() => navigation.openDrawer()}
         style={{ marginLeft: 16 }}
       >
-        <Menu size={28} color="#000" />
+        {/* <Menu size={28} color="#000" /> */}
       </TouchableOpacity>
     ),
     headerRight: () => <NotificationBell onLogout={onLogout} />,
