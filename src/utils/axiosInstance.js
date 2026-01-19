@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "https://glsdemo.techbirdit.in/",
+  baseURL: "",
   headers: {
     "Content-Type": "application/x-www-form-urlencoded",
     Accept: "application/json",

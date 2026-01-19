@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -47,6 +53,7 @@ const getMonthRange = ({ year, month }) => {
 };
 
 const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
+  const isMountedRef = useRef(true);
   const [open, setOpen] = useState(false);
   const [recentAttendanceList, setRecentAttendanceList] = useState([]);
   const [monthAttendanceList, setMonthAttendanceList] = useState([]);
@@ -76,6 +83,12 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [loadedCalendarMonthKey, setLoadedCalendarMonthKey] = useState(null);
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const calendarCurrent = useMemo(() => {
     return `${calendarMonth.year}-${String(calendarMonth.month).padStart(
       2,
@@ -87,31 +100,46 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const fetchRecentAttendance = useCallback(
     async (isRefresh = false) => {
       if (!currentEmployeeId) {
-        if (isRefresh) setRefreshing(false);
-        else setLoading(false);
+        if (isMountedRef.current) {
+          if (isRefresh) {
+            setRefreshing(false);
+          } else {
+            setLoading(false);
+          }
+        }
         return;
       }
 
-      if (!isRefresh) setLoading(true);
+      if (!isMountedRef.current) return;
+
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       try {
         const attendanceList = await getResourceList("Attendance", {
           filters: JSON.stringify([["employee", "=", currentEmployeeId]]),
           fields: JSON.stringify(["*"]),
           orderBy: {
-            field: "modified",
+            field: "attendance_date",
             order: "desc",
           },
-          limit: 10,
+          limit: "*",
           asDict: true,
         });
-        setRecentAttendanceList(attendanceList || []);
+        if (isMountedRef.current) {
+          setRecentAttendanceList(attendanceList || []);
+        }
       } catch (error) {
         console.error("Error fetching attendance:", error);
-        Alert.alert("Error", "Failed to fetch attendance records.");
+        if (isMountedRef.current) {
+          Alert.alert("Error", "Failed to fetch attendance records.");
+        }
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [currentEmployeeId]
@@ -127,7 +155,9 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
       const employeeDoc = await getResource("Employee", currentEmployeeId);
       const holidayListName = employeeDoc?.holiday_list;
       if (!holidayListName) {
-        setHolidays([]);
+        if (isMountedRef.current) {
+          setHolidays([]);
+        }
         return;
       }
       const holidayListDoc = await getResource("Holiday List", holidayListName);
@@ -139,7 +169,9 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
             }))
             .filter((h) => typeof h.date === "string" && h.date.length >= 10)
         : [];
-      setHolidays(list);
+      if (isMountedRef.current) {
+        setHolidays(list);
+      }
     } catch (error) {
       console.error("Error fetching holidays:", error);
     }
@@ -152,12 +184,21 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const fetchMonthAttendance = useCallback(
     async (monthInfo, isRefresh = false) => {
       if (!currentEmployeeId) {
-        if (isRefresh) setRefreshing(false);
-        else setCalendarLoading(false);
+        if (isMountedRef.current) {
+          if (isRefresh) {
+            setRefreshing(false);
+          } else {
+            setCalendarLoading(false);
+          }
+        }
         return;
       }
 
-      if (!isRefresh) setCalendarLoading(true);
+      if (!isMountedRef.current) return;
+
+      if (!isRefresh) {
+        setCalendarLoading(true);
+      }
 
       const { start, end } = getMonthRange(monthInfo);
 
@@ -168,23 +209,25 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
             ["attendance_date", ">=", start],
             ["attendance_date", "<=", end],
           ]),
-          fields: JSON.stringify([
-            "name",
-            "attendance_date",
-            "status",
-            "employee_name",
-          ]),
+          fields: ["*"],
           order_by: "attendance_date asc",
           limit_page_length: 500,
+          asDict: true,
         });
-        setMonthAttendanceList(data || []);
-        setLoadedCalendarMonthKey(`${monthInfo.year}-${monthInfo.month}`);
+        if (isMountedRef.current) {
+          setMonthAttendanceList(data || []);
+          setLoadedCalendarMonthKey(`${monthInfo.year}-${monthInfo.month}`);
+        }
       } catch (error) {
         console.error("Error fetching month attendance:", error);
-        Alert.alert("Error", "Failed to fetch monthly attendance.");
+        if (isMountedRef.current) {
+          Alert.alert("Error", "Failed to fetch monthly attendance.");
+        }
       } finally {
-        setCalendarLoading(false);
-        setRefreshing(false);
+        if (isMountedRef.current) {
+          setCalendarLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [currentEmployeeId]
@@ -429,11 +472,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               arrowColor: "#007bff",
             }}
           />
-          {calendarLoading && (
+          {/* {calendarLoading && (
             <View style={{ paddingVertical: 12 }}>
               <ActivityIndicator size="small" color="#007bff" />
             </View>
-          )}
+          )} */}
           <View style={styles.legendContainer}>
             {Object.keys(statusToColorMap).map((key) => (
               <View key={key} style={styles.legendItem}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,14 @@ import {
   TouchableOpacity,
   Alert,
   Button,
+  Modal,
+  Linking,
 } from "react-native";
-import { getResourceList } from "../utils/frappeApi";
+import {
+  getResourceList,
+  callFrappeMethod,
+  getFrappeBaseUrl,
+} from "../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
 import { List as ListIcon, DollarSign } from "lucide-react-native";
 
@@ -33,22 +39,42 @@ const SalarySlipScreen = ({
   currentEmployeeId,
   onLogout,
 }) => {
+  const isMountedRef = useRef(true);
   const [salarySlips, setSalarySlips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("structure");
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedSlip, setSelectedSlip] = useState(null);
+  const [docinfo, setDocinfo] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchSalarySlips = useCallback(
     async (isRefresh = false) => {
       if (!currentEmployeeId) {
-        if (isRefresh) setRefreshing(false);
-        else setLoading(false);
-        setError("Employee ID not available to fetch salary slips.");
+        if (isMountedRef.current) {
+          if (isRefresh) {
+            setRefreshing(false);
+          } else {
+            setLoading(false);
+          }
+          setError("Employee ID not available to fetch salary slips.");
+        }
         return;
       }
 
-      if (!isRefresh) setLoading(true);
+      if (!isMountedRef.current) return;
+
+      if (!isRefresh) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const filters = [["employee", "=", currentEmployeeId]];
@@ -66,15 +92,21 @@ const SalarySlipScreen = ({
           order_by: "start_date desc",
           limit_page_length: 20,
         });
-        setSalarySlips(slips || []);
+        if (isMountedRef.current) {
+          setSalarySlips(slips || []);
+        }
       } catch (err) {
         console.error("Error fetching salary slips:", err);
-        setError(
-          `Failed to load salary slips: ${err.message || "Unknown error"}`
-        );
+        if (isMountedRef.current) {
+          setError(
+            `Failed to load salary slips: ${err.message || "Unknown error"}`
+          );
+        }
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [currentEmployeeId]
@@ -85,12 +117,83 @@ const SalarySlipScreen = ({
   }, [fetchSalarySlips]);
 
   const onRefresh = () => {
+    if (!isMountedRef.current) return;
     setRefreshing(true);
     fetchSalarySlips(true);
   };
 
-  const handleViewSalarySlip = (slipName) => {
-    Alert.alert("View Salary Slip", `Viewing salary slip: ${slipName}`);
+  const handleViewSalarySlip = async (slip) => {
+    try {
+      if (!isMountedRef.current) return;
+      setSelectedSlip(slip);
+      setDocinfo(null);
+      setShowModal(true);
+      const res = await callFrappeMethod("frappe.desk.form.load.get_docinfo", {
+        doctype: "Salary Slip",
+        name: slip.name,
+      });
+
+      const info = res?.docinfo || res?.message?.docinfo || res;
+      if (isMountedRef.current) {
+        setDocinfo(info || {});
+      }
+      console.log("Salary Slip Docinfo:", info);
+    } catch (e) {
+      if (isMountedRef.current) {
+        setDocinfo(null);
+        Alert.alert("Error", "Failed to load salary slip details");
+      }
+    }
+  };
+
+  const getAttachmentUrl = () => {
+    const base = getFrappeBaseUrl() || "";
+    const files =
+      (docinfo &&
+        (docinfo.attachments || docinfo.attachment || docinfo.files)) ||
+      [];
+    const first = Array.isArray(files) && files.length > 0 ? files[0] : null;
+    const url =
+      (first && (first.file_url || first.filepath || first.url)) || "";
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    return `${base}${url}`;
+  };
+
+  const getPdfUrl = () => {
+    const base = getFrappeBaseUrl() || "";
+    const name = selectedSlip?.name || "";
+    if (!base || !name) return null;
+    const params = new URLSearchParams();
+    params.append("doctype", "Salary Slip");
+    params.append("name", name);
+    params.append("format", "Standard");
+    params.append("no_letterhead", "1");
+    params.append("letterhead", "No Letterhead");
+    params.append("settings", "{}");
+    params.append("_lang", "en");
+    return `${base}/api/method/frappe.utils.print_format.download_pdf?${params.toString()}`;
+  };
+
+  const handleDownload = async () => {
+    try {
+      if (!isMountedRef.current) return;
+      setDownloading(true);
+      const att = getAttachmentUrl();
+      const pdf = getPdfUrl();
+      const url = att || pdf;
+      if (isMountedRef.current) {
+        if (!url) {
+          Alert.alert("Download", "No file available to download");
+        } else {
+          await Linking.openURL(url);
+        }
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setDownloading(false);
+      }
+    }
   };
 
   const renderItem = ({ item }) => {
@@ -100,7 +203,7 @@ const SalarySlipScreen = ({
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() => handleViewSalarySlip(item.name)}
+        onPress={() => handleViewSalarySlip(item)}
       >
         <View style={styles.cardRow}>
           <View style={styles.iconContainer}>
@@ -127,41 +230,6 @@ const SalarySlipScreen = ({
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === "structure" && styles.activeTabButton,
-          ]}
-          onPress={() => setActiveTab("structure")}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              activeTab === "structure" && styles.activeTabButtonText,
-            ]}
-          >
-            Payroll Structure
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === "payslip" && styles.activeTabButton,
-          ]}
-          onPress={() => setActiveTab("payslip")}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              activeTab === "payslip" && styles.activeTabButtonText,
-            ]}
-          >
-            Download Payslip
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.listHeaderBar}>
         <View style={styles.listHeaderLeft}>
           <ListIcon size={18} color="orange" />
@@ -212,6 +280,80 @@ const SalarySlipScreen = ({
           </View>
         }
       />
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Salary Slip</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)}>
+                <MaterialIcons name="close" size={22} color="#333" />
+              </TouchableOpacity>
+            </View>
+            {selectedSlip ? (
+              <View style={styles.modalBody}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>ID</Text>
+                  <Text style={styles.detailValue}>{selectedSlip.name}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Employee</Text>
+                  <Text style={styles.detailValue}>
+                    {selectedSlip.employee_name}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Period</Text>
+                  <Text style={styles.detailValue}>
+                    {formatDate(selectedSlip.start_date)} -{" "}
+                    {formatDate(selectedSlip.end_date)}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Gross Pay</Text>
+                  <Text style={styles.detailValue}>
+                    ₹ {parseFloat(selectedSlip.gross_pay || 0).toFixed(2)}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Net Pay</Text>
+                  <Text style={styles.detailValue}>
+                    ₹ {parseFloat(selectedSlip.net_pay || 0).toFixed(2)}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Status</Text>
+                  <Text style={styles.detailValue}>{selectedSlip.status}</Text>
+                </View>
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={handleDownload}
+                    disabled={downloading}
+                  >
+                    <MaterialIcons
+                      name="file-download"
+                      size={18}
+                      color="#fff"
+                    />
+                    <Text style={styles.primaryButtonText}>
+                      {downloading ? "Downloading..." : "Download"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.modalBody}>
+                <ActivityIndicator size="small" color="#271085" />
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -342,6 +484,71 @@ const styles = StyleSheet.create({
   emptyText: {
     color: "#777",
     fontStyle: "italic",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#333",
+  },
+  modalBody: {
+    gap: 10,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+  },
+  detailLabel: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "600",
+  },
+  detailValue: {
+    fontSize: 13,
+    color: "#333",
+    fontWeight: "500",
+  },
+  actionsRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#271085",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
   },
   // Tab buttons
   buttonContainer: {

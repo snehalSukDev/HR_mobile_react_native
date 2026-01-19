@@ -6,7 +6,7 @@ import qs from "qs";
 // Utility functions for interacting with the Frappe API in React Native.
 // These use standard fetch, which works in React Native.
 
-let frappeBaseUrl = "https://glsdemo.techbirdit.in";
+let frappeBaseUrl = "";
 
 function normalizeFrappeBaseUrl(input) {
   const raw = String(input || "").trim();
@@ -39,7 +39,7 @@ export function getFrappeBaseUrl() {
 // Helper function for making authenticated Frappe API requests
 async function frappeFetch(path, options = {}) {
   const url = `${frappeBaseUrl}${path}`;
-  console.log(`[FrappeAPI] Fetching: ${url}`); // Debugging log
+  console.log(`[FrappeAPI] Fetching: ${url}`);
 
   try {
     const response = await fetch(url, {
@@ -60,7 +60,9 @@ async function frappeFetch(path, options = {}) {
       const errorData = await response
         .json()
         .catch(() => ({ message: response.statusText }));
-      console.error(
+      const is404 = response.status === 404;
+      const logFn = is404 ? console.warn : console.error;
+      logFn(
         `[FrappeAPI] API Error (${response.status} ${response.statusText}):`,
         errorData
       );
@@ -70,7 +72,6 @@ async function frappeFetch(path, options = {}) {
     }
 
     const data = await response.json();
-    console.log(`[FrappeAPI] Response for ${path}:`, data); // Debugging log
     return data;
   } catch (error) {
     console.error(`[FrappeAPI] Network/Fetch Error for ${path}:`, error);

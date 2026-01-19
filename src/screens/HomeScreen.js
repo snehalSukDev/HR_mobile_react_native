@@ -14,7 +14,10 @@ import {
   PanResponder,
   Alert,
   Linking,
+  StatusBar,
+  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   fetchEmployeeDetails,
@@ -22,7 +25,7 @@ import {
   callFrappeMethod,
   getGeolocation,
 } from "../utils/frappeApi";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   Megaphone,
   CheckCircle2,
@@ -40,11 +43,14 @@ import {
   Gift,
   Wallet2,
   Calendar,
+  Layers,
+  CalendarClock,
 } from "lucide-react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProfileAvatar from "../Components/ProfileAvatar";
 import MapView, { Marker } from "react-native-maps";
 export default function HomeScreen({ navigation, currentUserEmail }) {
+  const isMountedRef = useRef(true);
   const [employeeProfile, setEmployeeProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,11 +68,20 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   const knobSize = 44;
   const maxDistance = Math.max(trackWidth - knobSize, 0);
   const [coords, setCoords] = useState(null);
+  const [mapError, setMapError] = useState(false);
+  const [mapEnabled, setMapEnabled] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const effectivePunchedIn = isPunching ? pendingLogType === "IN" : punchedIn;
 
   const runCheck = useCallback(
     async (logType) => {
+      if (!isMountedRef.current) return false;
       if (!employeeProfile?.name) return false;
       if (isPunching) return false;
       setIsPunching(true);
@@ -85,15 +100,21 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           doc: JSON.stringify(doc),
           action: "Save",
         });
-        Alert.alert("Success", `Checked ${logType}`);
-        fetchCheckins();
+        if (isMountedRef.current) {
+          Alert.alert("Success", `Checked ${logType}`);
+          fetchCheckins();
+        }
         return true;
       } catch (e) {
-        Alert.alert("Error", "Check-in failed");
+        if (isMountedRef.current) {
+          Alert.alert("Error", "Check-in failed");
+        }
         return false;
       } finally {
-        setIsPunching(false);
-        setPendingLogType(null);
+        if (isMountedRef.current) {
+          setIsPunching(false);
+          setPendingLogType(null);
+        }
       }
     },
     [employeeProfile, fetchCheckins, isPunching]
@@ -189,13 +210,15 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
         }
       );
       const message = data || {};
-      setEvents({
-        birthdays: Array.isArray(message.birthdays) ? message.birthdays : [],
-        anniversaries: Array.isArray(message.work_anniversaries)
-          ? message.work_anniversaries
-          : [],
-        holidays: Array.isArray(message.holidays) ? message.holidays : [],
-      });
+      if (isMountedRef.current) {
+        setEvents({
+          birthdays: Array.isArray(message.birthdays) ? message.birthdays : [],
+          anniversaries: Array.isArray(message.work_anniversaries)
+            ? message.work_anniversaries
+            : [],
+          holidays: Array.isArray(message.holidays) ? message.holidays : [],
+        });
+      }
     } catch (err) {
       console.error("Error fetching events:", err);
     }
@@ -206,16 +229,23 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   }, [fetchEvents]);
 
   const fetchProfile = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setLoading(true);
     setError(null);
     try {
       const profile = await fetchEmployeeDetails(currentUserEmail, true);
-      setEmployeeProfile(profile);
+      if (isMountedRef.current) {
+        setEmployeeProfile(profile);
+      }
     } catch (err) {
       console.error("Error fetching profile:", err);
-      setError(err.message || "Unknown error");
+      if (isMountedRef.current) {
+        setError(err.message || "Unknown error");
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [currentUserEmail]);
 
@@ -223,10 +253,13 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   const fetchCheckins = useCallback(async () => {
     const data = await getResourceList("Employee Checkin", {
       filters: JSON.stringify([["time", "Timespan", "today"]]),
-      fields: JSON.stringify(["log_type"]),
+      fields: JSON.stringify(["log_type", "time"]),
       order_by: "time asc",
     });
-    setCheckins(data || []);
+    console.log("Checkins:", data);
+    if (isMountedRef.current) {
+      setCheckins(data || []);
+    }
   }, []);
 
   useEffect(() => {
@@ -265,7 +298,16 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
     (async () => {
       try {
         const pos = await getGeolocation();
-        setCoords(pos);
+        if (
+          isMountedRef.current &&
+          pos &&
+          typeof pos.latitude === "number" &&
+          typeof pos.longitude === "number" &&
+          !Number.isNaN(pos.latitude) &&
+          !Number.isNaN(pos.longitude)
+        ) {
+          setCoords(pos);
+        }
       } catch (e) {
         // ignore location failures
       }
@@ -291,34 +333,48 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.headerCard}>
-        <View style={styles.headerTop}>
-          <ProfileAvatar
-            imagePath={employeeProfile.image}
-            employeeName={employeeProfile.employee_name}
-            size={60}
-          />
-          <View style={styles.headerTextGroup}>
-            <Text style={styles.headerGreeting}>{greeting}</Text>
-            <Text style={styles.headerName}>
-              Mr. {employeeProfile.employee_name}
-            </Text>
-            <Text style={styles.headerSub}>
-              Last swipe: {new Date().toLocaleDateString()}
-            </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar
+        translucent
+        backgroundColor="rgba(255,255,255,0.6)"
+        barStyle="dark-content"
+      />
+      <ScrollView style={styles.container}>
+        <View style={styles.headerCard}>
+          <View style={styles.headerTop}>
+            <ProfileAvatar
+              imagePath={employeeProfile.image}
+              employeeName={employeeProfile.employee_name}
+              size={60}
+            />
+            <View style={styles.headerTextGroup}>
+              <Text style={styles.headerGreeting}>{greeting}</Text>
+              <Text style={styles.headerName}>
+                Mr. {employeeProfile.employee_name}
+              </Text>
+              <Text style={styles.headerSub}>
+                Last swipe:{" "}
+                {lastLog?.time
+                  ? `${format(parseISO(lastLog.time), "dd MMM yy, hh:mm a")}`
+                  : `${format(new Date(), "dd MMM yy, hh:mm a")}`}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        {/* Location card */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <MaterialIcons name="location-on" size={18} color="#271085" />
-            <Text style={styles.sectionTitle}>My Location</Text>
-          </View>
-          <View style={styles.sectionBody}>
-            {coords ? (
-              <>
+          {/* Location card */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <MaterialIcons name="location-on" size={18} color="#271085" />
+              <Text style={styles.sectionTitle}>My Location</Text>
+            </View>
+            <View style={styles.sectionBody}>
+              {coords &&
+              !mapError &&
+              mapEnabled &&
+              typeof coords.latitude === "number" &&
+              typeof coords.longitude === "number" &&
+              !Number.isNaN(coords.latitude) &&
+              !Number.isNaN(coords.longitude) ? (
                 <MapView
                   style={styles.map}
                   initialRegion={{
@@ -327,6 +383,8 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
                     latitudeDelta: 0.01,
                     longitudeDelta: 0.01,
                   }}
+                  liteMode={Platform.OS === "android"}
+                  onError={() => setMapError(true)}
                 >
                   <Marker
                     coordinate={{
@@ -336,192 +394,251 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
                     title="You are here"
                   />
                 </MapView>
-              </>
+              ) : mapError ? (
+                <Text style={styles.sectionText}>
+                  Unable to display map. Please check location services.
+                </Text>
+              ) : coords ? (
+                <View>
+                  <Text style={styles.sectionText}>
+                    Location detected: {coords.latitude.toFixed(5)},{" "}
+                    {coords.longitude.toFixed(5)}
+                  </Text>
+                  <View style={{ flexDirection: "row", marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: "#271085",
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        marginRight: 10,
+                      }}
+                      onPress={() => setMapEnabled(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "600" }}>
+                        Show Map
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: "#e9ecef",
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                      }}
+                      onPress={() =>
+                        Linking.openURL(
+                          `geo:${coords.latitude},${coords.longitude}?q=${coords.latitude},${coords.longitude}`
+                        )
+                      }
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ color: "#271085", fontWeight: "600" }}>
+                        Open in Maps
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.sectionText}>Fetching location...</Text>
+              )}
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.slideTrack,
+              effectivePunchedIn
+                ? {
+                    backgroundColor: "#ffecec", // light red bg (Punch Out)
+                    borderColor: "#EA4335", // red border
+                  }
+                : {
+                    backgroundColor: "#e8fff0", // light green bg (Punch In)
+                    borderColor: "#34A853", // green border
+                  },
+            ]}
+            onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+          >
+            {isPunching ? (
+              <View style={styles.slideCenter}>
+                <ActivityIndicator
+                  size="small"
+                  color={effectivePunchedIn ? "#EA4335" : "#34A853"}
+                />
+                <Text
+                  style={[
+                    styles.slideLoadingText,
+                    { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
+                  ]}
+                >
+                  {pendingLogType === "OUT"
+                    ? "Punching Out..."
+                    : "Punching In..."}
+                </Text>
+              </View>
             ) : (
-              <Text style={styles.sectionText}>Fetching location...</Text>
+              <Text
+                style={[
+                  styles.slideText,
+                  { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
+                ]}
+              >
+                {effectivePunchedIn
+                  ? "Slide back to Punch Out"
+                  : "Slide to Punch In"}
+              </Text>
+            )}
+
+            <Animated.View
+              style={[
+                styles.slideKnob,
+                {
+                  width: knobSize,
+                  height: knobSize,
+                  transform: [{ translateX: sliderPos }],
+                  backgroundColor: effectivePunchedIn ? "#EA4335" : "#34A853",
+                  opacity: isPunching ? 0.7 : 1,
+                },
+              ]}
+              {...panResponder.panHandlers}
+            >
+              <MaterialIcons
+                name={effectivePunchedIn ? "logout" : "login"}
+                size={22}
+                color="#fff"
+                style={{
+                  transform: effectivePunchedIn
+                    ? [{ scaleX: -1 }] // 🔁 mirror ONLY for Punch Out
+                    : [{ scaleX: 1 }], // ➡️ normal for Punch In
+                }}
+              />
+            </Animated.View>
+          </View>
+
+          <View style={styles.quickDividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.quickTitle}>Quick Actions</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          <View style={styles.quickIconRow}>
+            <TouchableOpacity
+              style={styles.quickIconItem}
+              onPress={() => navigation.navigate("Expense Claim")}
+            >
+              <View style={styles.quickIconCircle}>
+                <Wallet2 size={22} color="#fff" />
+              </View>
+              <Text style={styles.quickIconLabel}>Expense Claim</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickIconItem}
+              onPress={() => navigation.navigate("Shift")}
+            >
+              <View style={styles.quickIconCircle}>
+                <Layers size={22} color="#fff" />
+              </View>
+              <Text style={styles.quickIconLabel}>Shift Roaster</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickIconItem}
+              onPress={() => navigation.navigate("Attendance")}
+            >
+              <View style={styles.quickIconCircle}>
+                <Clock size={22} color="#fff" />
+              </View>
+              <Text style={styles.quickIconLabel}>Attendance</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickIconItem}
+              onPress={() => navigation.navigate("Leave")}
+            >
+              <View style={styles.quickIconCircle}>
+                <CalendarClock size={22} color="#fff" />
+              </View>
+              <Text style={styles.quickIconLabel}>Leave</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickIconItem}
+              onPress={() => navigation.navigate("Announcement")}
+            >
+              <View style={styles.quickIconCircle}>
+                <Megaphone size={22} color="#fff" />
+              </View>
+              <Text style={styles.quickIconLabel}>Announcement</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <Gift size={18} color="#271085" />
+            <Text style={styles.sectionTitle}>Birthday Reminder</Text>
+          </View>
+          <View style={styles.sectionBody}>
+            {events.birthdays.length > 0 ? (
+              events.birthdays.map((b, i) => (
+                <Text key={i} style={styles.sectionText}>
+                  {typeof b === "object" ? b.employee_name : b}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.sectionText}>No upcoming birthdays.</Text>
             )}
           </View>
         </View>
 
-        <View
-          style={[
-            styles.slideTrack,
-            effectivePunchedIn
-              ? {
-                  backgroundColor: "#ffecec", // light red bg (Punch Out)
-                  borderColor: "#EA4335", // red border
-                }
-              : {
-                  backgroundColor: "#e8fff0", // light green bg (Punch In)
-                  borderColor: "#34A853", // green border
-                },
-          ]}
-          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-        >
-          {isPunching ? (
-            <View style={styles.slideCenter}>
-              <ActivityIndicator
-                size="small"
-                color={effectivePunchedIn ? "#EA4335" : "#34A853"}
-              />
-              <Text
-                style={[
-                  styles.slideLoadingText,
-                  { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
-                ]}
-              >
-                {pendingLogType === "OUT"
-                  ? "Punching Out..."
-                  : "Punching In..."}
-              </Text>
-            </View>
-          ) : (
-            <Text
-              style={[
-                styles.slideText,
-                { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
-              ]}
-            >
-              {effectivePunchedIn
-                ? "Slide back to Punch Out"
-                : "Slide to Punch In"}
-            </Text>
-          )}
-
-          <Animated.View
-            style={[
-              styles.slideKnob,
-              {
-                width: knobSize,
-                height: knobSize,
-                transform: [{ translateX: sliderPos }],
-                backgroundColor: effectivePunchedIn ? "#EA4335" : "#34A853",
-                opacity: isPunching ? 0.7 : 1,
-              },
-            ]}
-            {...panResponder.panHandlers}
-          >
-            <MaterialIcons
-              name={effectivePunchedIn ? "logout" : "login"}
-              size={22}
-              color="#fff"
-              style={{
-                transform: effectivePunchedIn
-                  ? [{ scaleX: -1 }] // 🔁 mirror ONLY for Punch Out
-                  : [{ scaleX: 1 }], // ➡️ normal for Punch In
-              }}
-            />
-          </Animated.View>
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <Award size={18} color="#271085" />
+            <Text style={styles.sectionTitle}>Work Anniversaries</Text>
+          </View>
+          <View style={styles.sectionBody}>
+            {events.anniversaries.length > 0 ? (
+              events.anniversaries.map((a, i) => (
+                <Text key={i} style={styles.sectionText}>
+                  {typeof a === "object" ? a.employee_name : a}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.sectionText}>No upcoming anniversaries.</Text>
+            )}
+          </View>
         </View>
 
-        <View style={styles.quickDividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.quickTitle}>Quick Actions</Text>
-          <View style={styles.dividerLine} />
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <Calendar size={18} color="#271085" />
+            <Text style={styles.sectionTitle}>Holidays</Text>
+          </View>
+          <View style={styles.sectionBody}>
+            {events.holidays.length > 0 ? (
+              events.holidays.map((h, i) => (
+                <Text key={i} style={styles.sectionText}>
+                  {typeof h === "object"
+                    ? `${h.description?.replace(/<[^>]+>/g, "").trim()} (${
+                        h.holiday_date
+                      })`
+                    : h}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.sectionText}>No upcoming holidays.</Text>
+            )}
+          </View>
         </View>
-        <View style={styles.quickIconRow}>
-          <TouchableOpacity
-            style={styles.quickIconItem}
-            onPress={() => navigation.navigate("Expense Claim")}
-          >
-            <View style={styles.quickIconCircle}>
-              <Wallet2 size={22} color="#fff" />
-            </View>
-            <Text style={styles.quickIconLabel}>Expense Claim</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickIconItem}
-            onPress={() => navigation.navigate("Shift Roaster")}
-          >
-            <View style={styles.quickIconCircle}>
-              <FileText size={22} color="#fff" />
-            </View>
-            <Text style={styles.quickIconLabel}>Shift Roaster</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickIconItem}
-            onPress={() => navigation.navigate("Attendance")}
-          >
-            <View style={styles.quickIconCircle}>
-              <Clock size={22} color="#fff" />
-            </View>
-            <Text style={styles.quickIconLabel}>Attendance</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickIconItem}
-            onPress={() => navigation.navigate("Leave")}
-          >
-            <View style={styles.quickIconCircle}>
-              <MaterialIcons name="event-note" size={22} color="#fff" />
-            </View>
-            <Text style={styles.quickIconLabel}>Leave</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeaderRow}>
-          <Gift size={18} color="#271085" />
-          <Text style={styles.sectionTitle}>Birthday Reminder</Text>
-        </View>
-        <View style={styles.sectionBody}>
-          {events.birthdays.length > 0 ? (
-            events.birthdays.map((b, i) => (
-              <Text key={i} style={styles.sectionText}>
-                {typeof b === "object" ? b.employee_name : b}
-              </Text>
-            ))
-          ) : (
-            <Text style={styles.sectionText}>No upcoming birthdays.</Text>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeaderRow}>
-          <Award size={18} color="#271085" />
-          <Text style={styles.sectionTitle}>Work Anniversaries</Text>
-        </View>
-        <View style={styles.sectionBody}>
-          {events.anniversaries.length > 0 ? (
-            events.anniversaries.map((a, i) => (
-              <Text key={i} style={styles.sectionText}>
-                {typeof a === "object" ? a.employee_name : a}
-              </Text>
-            ))
-          ) : (
-            <Text style={styles.sectionText}>No upcoming anniversaries.</Text>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeaderRow}>
-          <Calendar size={18} color="#271085" />
-          <Text style={styles.sectionTitle}>Holidays</Text>
-        </View>
-        <View style={styles.sectionBody}>
-          {events.holidays.length > 0 ? (
-            events.holidays.map((h, i) => (
-              <Text key={i} style={styles.sectionText}>
-                {typeof h === "object"
-                  ? `${h.description?.replace(/<[^>]+>/g, "").trim()} (${
-                      h.holiday_date
-                    })`
-                  : h}
-              </Text>
-            ))
-          ) : (
-            <Text style={styles.sectionText}>No upcoming holidays.</Text>
-          )}
-        </View>
-      </View>
-      {/* ... other sections ... */}
-    </ScrollView>
+        {/* ... other sections ... */}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.6)",
+  },
   container: { flex: 1, padding: 16 },
   headerCard: {
     backgroundColor: "#213465",

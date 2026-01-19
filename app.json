@@ -26,11 +26,11 @@
     "web": {
       "favicon": "./src/assests/techbirdlogonew.png"
     },
+    "owner": "snehalsukhadeve",
     "extra": {
       "eas": {
-        "projectId": "61af2af9-574c-48cd-9678-368f5e406bf7"
+        "projectId": "1e1f65d8-eb13-42c6-ab40-2d44e6b90a7e"
       }
-    },
-    "owner": "snehalsukhadeve"
+    }
   }
 }

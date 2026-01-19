@@ -9,19 +9,88 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
 import { Menu, Bell } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { callFrappeMethod } from "../utils/frappeApi";
+import { callFrappeMethod, fetchEmployeeDetails } from "../utils/frappeApi";
+import ProfileAvatar from "../Components/ProfileAvatar";
 
-function NotificationBell({ onLogout }) {
+function cleanHtmlText(input) {
+  try {
+    if (!input) return "";
+    const s = String(input);
+    return s
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return String(input || "");
+  }
+}
+
+function decodeEntities(s) {
+  return String(s || "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"');
+}
+
+function parseInlineSegments(input) {
+  if (!input) return [];
+  const keepTags = input.replace(/<(?!\/?(strong|b)\b)[^>]*>/gi, "");
+  const parts = keepTags.split(/(<\/?strong[^>]*>|<\/?b[^>]*>)/i);
+  const segments = [];
+  let bold = false;
+  for (const p of parts) {
+    if (!p) continue;
+    if (/^<\s*(strong|b)\b[^>]*>$/i.test(p)) {
+      bold = true;
+      continue;
+    }
+    if (/^<\s*\/\s*(strong|b)\s*>$/i.test(p)) {
+      bold = false;
+      continue;
+    }
+    const txt = decodeEntities(p).replace(/\s+/g, " ").trim();
+    if (txt) segments.push({ text: txt, bold });
+  }
+  return segments;
+}
+
+function SegmentedText({ raw, style, numberOfLines }) {
+  const segments = parseInlineSegments(raw);
+  return (
+    <Text style={style} numberOfLines={numberOfLines}>
+      {segments.length > 0
+        ? segments.map((seg, i) => (
+            <Text key={i} style={seg.bold ? styles.boldText : null}>
+              {seg.text + " "}
+            </Text>
+          ))
+        : cleanHtmlText(raw)}
+    </Text>
+  );
+}
+
+function NotificationBell({ onLogout, currentUserEmail }) {
+  const navigation = useNavigation();
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notify, setNotify] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
+  const [employeeProfile, setEmployeeProfile] = useState(null);
 
   const generalNotifications = useMemo(
     () => (notify || []).filter((item) => item?.document_type !== "Event"),
@@ -32,6 +101,19 @@ function NotificationBell({ onLogout }) {
     const isRead = (n) => n?.read === 1 || n?.read === true || n?.read === "1";
     return (generalNotifications || []).some((n) => !isRead(n));
   }, [generalNotifications]);
+
+  useEffect(() => {
+    const loadEmployee = async () => {
+      if (!currentUserEmail) return;
+      try {
+        const profile = await fetchEmployeeDetails(currentUserEmail, true);
+        setEmployeeProfile(profile || null);
+      } catch (e) {
+        // ignore header employee load errors
+      }
+    };
+    loadEmployee();
+  }, [currentUserEmail]);
 
   const close = useCallback(() => {
     setVisible(false);
@@ -50,6 +132,8 @@ function NotificationBell({ onLogout }) {
           "frappe.desk.doctype.notification_log.notification_log.get_notification_logs"
         );
         setNotify(message?.notification_logs || []);
+        console.log("Notification API response:", message);
+        setUserInfo(message?.user_info || null);
       } catch (e) {
         if (showLoader) {
           setNotify([]);
@@ -112,6 +196,29 @@ function NotificationBell({ onLogout }) {
       <TouchableOpacity onPress={handleLogoutPress} style={{ marginRight: 16 }}>
         <MaterialIcons name="power-settings-new" size={24} color="#EA4335" />
       </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() =>
+          navigation.navigate("Home", {
+            screen: "Info",
+          })
+        }
+        style={{ marginRight: 12 }}
+        activeOpacity={0.7}
+      >
+        <ProfileAvatar
+          imagePath={
+            (employeeProfile && employeeProfile.image) ||
+            (userInfo && (userInfo.user_image || userInfo.image)) ||
+            ""
+          }
+          employeeName={
+            (employeeProfile && employeeProfile.employee_name) ||
+            (userInfo && (userInfo.full_name || userInfo.name)) ||
+            ""
+          }
+          size={28}
+        />
+      </TouchableOpacity>
 
       <Modal
         visible={visible}
@@ -157,22 +264,28 @@ function NotificationBell({ onLogout }) {
               </View>
             ) : selected ? (
               <ScrollView style={styles.modalBody}>
-                <Text style={styles.detailTitle}>
-                  {selected?.subject ||
+                <SegmentedText
+                  style={styles.detailTitle}
+                  raw={
+                    selected?.subject ||
                     selected?.document_name ||
-                    "Notification"}
-                </Text>
+                    "Notification"
+                  }
+                />
                 {selected?.creation ? (
                   <Text style={styles.detailMeta}>
                     {new Date(selected.creation).toLocaleString()}
                   </Text>
                 ) : null}
-                <Text style={styles.detailBody}>
-                  {selected?.email_content ||
+                <SegmentedText
+                  style={styles.detailBody}
+                  raw={
+                    selected?.email_content ||
                     selected?.message ||
                     selected?.subject ||
-                    "No content"}
-                </Text>
+                    "No content"
+                  }
+                />
               </ScrollView>
             ) : (
               <ScrollView style={styles.modalBody}>
@@ -187,11 +300,37 @@ function NotificationBell({ onLogout }) {
                       typeof notif?.email_content === "string"
                         ? notif.email_content
                         : "";
+                    const isRead =
+                      notif?.read === 1 ||
+                      notif?.read === true ||
+                      notif?.read === "1";
                     return (
-                      <View key={notif?.name} style={styles.notifCard}>
-                        <Text style={styles.notifTitle} numberOfLines={2}>
-                          {titleText}
-                        </Text>
+                      <View
+                        key={notif?.name}
+                        style={[
+                          styles.notifCard,
+                          !isRead && { borderColor: "#007bff", borderWidth: 1 },
+                        ]}
+                      >
+                        <View style={styles.notifTopRow}>
+                          <SegmentedText
+                            style={styles.notifTitle}
+                            numberOfLines={2}
+                            raw={titleText}
+                          />
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              isRead
+                                ? styles.statusBadgeRead
+                                : styles.statusBadgeUnread,
+                            ]}
+                          >
+                            <Text style={styles.statusBadgeText}>
+                              {isRead ? "Read" : "Unread"}
+                            </Text>
+                          </View>
+                        </View>
                         {notif?.creation ? (
                           <Text style={styles.notifMeta}>
                             {new Date(notif.creation).toLocaleString()}
@@ -199,7 +338,7 @@ function NotificationBell({ onLogout }) {
                         ) : null}
                         {preview ? (
                           <Text style={styles.notifPreview} numberOfLines={2}>
-                            {preview}
+                            {cleanHtmlText(preview)}
                           </Text>
                         ) : null}
 
@@ -234,20 +373,27 @@ function NotificationBell({ onLogout }) {
   );
 }
 
-export const createSharedOptions = (onLogout) => {
+export const createSharedOptions = (onLogout, currentUserEmail) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const logo = require("../assests/techbirdicon.png");
 
   return {
     headerLeft: () => (
-      <TouchableOpacity
-        onPress={() => navigation.openDrawer()}
-        style={{ marginLeft: 16 }}
-      >
-        {/* <Menu size={28} color="#000" /> */}
-      </TouchableOpacity>
+      <View style={styles.headerLeftRow}>
+        <Image source={logo} style={styles.logo} resizeMode="contain" />
+      </View>
     ),
-    headerRight: () => <NotificationBell onLogout={onLogout} />,
+    headerLeftContainerStyle: {
+      paddingLeft: 0,
+      marginLeft: 0,
+    },
+    headerRight: () => (
+      <NotificationBell
+        onLogout={onLogout}
+        currentUserEmail={currentUserEmail}
+      />
+    ),
     tabBarShowLabel: true,
     tabBarActiveTintColor: "#007bff",
     tabBarInactiveTintColor: "gray",
@@ -315,6 +461,17 @@ const styles = StyleSheet.create({
   modalBody: {
     padding: 14,
   },
+  headerLeftRow: {
+    marginLeft: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  logo: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+  },
   centered: {
     padding: 20,
     alignItems: "center",
@@ -341,11 +498,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
+    overflow: "hidden",
+  },
+  notifTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   notifTitle: {
     fontSize: 14,
     fontWeight: "700",
     color: "#111",
+    flex: 1,
+    marginRight: 8,
   },
   notifMeta: {
     marginTop: 6,
@@ -369,6 +534,21 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 12,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+    flexShrink: 0,
+    marginLeft: 8,
+    marginTop: 2,
+  },
+  statusBadgeUnread: { backgroundColor: "#e7f1ff" },
+  statusBadgeRead: { backgroundColor: "#f2f2f2" },
+  statusBadgeText: { fontSize: 12, color: "#333", fontWeight: "600" },
+  boldText: {
+    fontWeight: "700",
   },
   emptyTitle: {
     marginTop: 12,

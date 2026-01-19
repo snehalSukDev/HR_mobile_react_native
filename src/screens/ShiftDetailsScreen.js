@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -50,12 +50,19 @@ const ShiftDetailsScreen = ({
   currentEmployeeId,
   onLogout,
 }) => {
+  const isMountedRef = useRef(true);
   const [shiftData, setShiftData] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const { width } = useWindowDimensions();
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const monthDisplay = useMemo(() => {
     return currentMonth.toLocaleString("en-US", {
@@ -67,15 +74,24 @@ const ShiftDetailsScreen = ({
   const fetchShiftData = useCallback(
     async (isRefresh = false) => {
       if (!currentUserEmail) {
-        setError(
-          "User email not provided. Please ensure your profile is complete."
-        );
-        if (isRefresh) setRefreshing(false);
-        else setLoading(false);
+        if (isMountedRef.current) {
+          setError(
+            "User email not provided. Please ensure your profile is complete."
+          );
+          if (isRefresh) {
+            setRefreshing(false);
+          } else {
+            setLoading(false);
+          }
+        }
         return;
       }
 
-      if (!isRefresh) setLoading(true);
+      if (!isMountedRef.current) return;
+
+      if (!isRefresh) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -85,17 +101,29 @@ const ShiftDetailsScreen = ({
         });
 
         if (!empRes || empRes.length === 0) {
-          setError("Employee not found. Please contact your administrator.");
-          if (isRefresh) setRefreshing(false);
-          else setLoading(false);
+          if (isMountedRef.current) {
+            setError("Employee not found. Please contact your administrator.");
+            if (isRefresh) {
+              setRefreshing(false);
+            } else {
+              setLoading(false);
+            }
+          }
           return;
         }
 
         const empId = empRes?.[0]?.name;
         if (!empId) {
-          setError("Employee ID not found. Please contact your administrator.");
-          if (isRefresh) setRefreshing(false);
-          else setLoading(false);
+          if (isMountedRef.current) {
+            setError(
+              "Employee ID not found. Please contact your administrator."
+            );
+            if (isRefresh) {
+              setRefreshing(false);
+            } else {
+              setLoading(false);
+            }
+          }
           return;
         }
 
@@ -133,9 +161,7 @@ const ShiftDetailsScreen = ({
         const shiftTypeMap = {};
         for (const type of shiftTypes) {
           const details = await getResource("Shift Type", type);
-          // CORRECTED LINE: Standard assignment with a check
           if (shiftTypeMap) {
-            // This check is mostly for clarity; shiftTypeMap is always an object here
             shiftTypeMap[type] = details;
           }
         }
@@ -170,17 +196,26 @@ const ShiftDetailsScreen = ({
         dailyRoster.sort(
           (a, b) => new Date(a.shift_date) - new Date(b.shift_date)
         );
-        setShiftData(dailyRoster);
+        if (isMountedRef.current) {
+          setShiftData(dailyRoster);
+        }
       } catch (err) {
         console.error("Shift fetch error:", err);
-        Alert.alert(
-          "Error",
-          "Failed to load shift data. Please check your internet connection or try again later."
-        );
-        setError("Failed to fetch shift data.");
+        if (isMountedRef.current) {
+          Alert.alert(
+            "Error",
+            "Failed to load shift data. Please check your internet connection or try again later."
+          );
+          setError("Failed to fetch shift data.");
+        }
       } finally {
-        if (isRefresh) setRefreshing(false);
-        else setLoading(false);
+        if (isMountedRef.current) {
+          if (isRefresh) {
+            setRefreshing(false);
+          } else {
+            setLoading(false);
+          }
+        }
       }
     },
     [currentUserEmail, currentMonth]
@@ -243,15 +278,6 @@ const ShiftDetailsScreen = ({
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading your shift roster...</Text>
-      </View>
-    );
-  }
-
   if (error) {
     return (
       <View style={styles.centered}>
@@ -285,29 +311,36 @@ const ShiftDetailsScreen = ({
       </View>
 
       <View style={styles.tableContainer}>
-        <FlatList
-          data={shiftData}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          ListHeaderComponent={renderHeader}
-          stickyHeaderIndices={[0]}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#007bff"
-            />
-          }
-          ListEmptyComponent={() => (
-            <View style={styles.emptyContainer}>
-              <MaterialIcons name="calendar-today" size={50} color="#aaa" />
-              <Text style={styles.emptyText}>
-                No shifts assigned for this month.
-              </Text>
-            </View>
-          )}
-        />
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color="#007bff" />
+            <Text style={styles.loadingText}>Loading your shift roster...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={shiftData}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            ListHeaderComponent={renderHeader}
+            stickyHeaderIndices={[0]}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#007bff"
+              />
+            }
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <MaterialIcons name="calendar-today" size={50} color="#aaa" />
+                <Text style={styles.emptyText}>
+                  No shifts assigned for this month.
+                </Text>
+              </View>
+            )}
+          />
+        )}
       </View>
     </View>
   );
@@ -356,7 +389,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#343a40",
   },

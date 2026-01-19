@@ -8,19 +8,22 @@ import {
   TouchableOpacity,
   Alert,
   Button,
-  Platform,
+  TextInput,
 } from "react-native";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
-import {
-  Wallet,
-  Plus,
-  List as ListIcon,
-  DollarSign,
-} from "lucide-react-native";
+import { Megaphone, List as ListIcon } from "lucide-react-native";
 import { format, parseISO } from "date-fns";
 import DoctypeFormModal from "../Components/DoctypeFormModal";
-import DoctypeExpenseModal from "../Components/DoctypeExpenseModal";
+
+const DOCTYPE = "Announcement";
+
+const statusOptions = [
+  { label: "All", value: "all" },
+  { label: "Draft", value: "Draft" },
+  { label: "Expired", value: "Expired" },
+  { label: "Scheduled", value: "Scheduled" },
+];
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -31,46 +34,62 @@ const formatDate = (dateString) => {
   }
 };
 
-const statusToColorMap = {
-  Draft: { bg: "#e0f2f1", text: "#00695c" },
-  Submitted: { bg: "#fff3e0", text: "#ef6c00" },
-  Cancelled: { bg: "#ffebee", text: "#c62828" },
-  Paid: { bg: "#e8f5e9", text: "#2e7d32" },
-  Approved: { bg: "#e8f5e9", text: "#2e7d32" },
-  Rejected: { bg: "#ffebee", text: "#c62828" },
-  Unpaid: { bg: "#ffebee", text: "#c62828" },
-  Pending: { bg: "#fff3e0", text: "#ef6c00" },
+const cleanHtmlText = (input) => {
+  try {
+    if (!input) return "";
+    const s = String(input);
+    return s
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return String(input || "");
+  }
 };
 
-const ExpenseClaimScreen = ({ currentEmployeeId }) => {
+const statusToColorMap = {
+  Draft: { bg: "#e0f2f1", text: "#00695c" },
+  Scheduled: { bg: "#fff3e0", text: "#ef6c00" },
+  Expired: { bg: "#ffebee", text: "#c62828" },
+  Active: { bg: "#e8f5e9", text: "#2e7d32" },
+};
+
+const AnnouncementScreen = () => {
   const isMountedRef = useRef(true);
-  const [myClaims, setMyClaims] = useState([]);
-  const [claimsToApprove, setClaimsToApprove] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [showNewModal, setShowNewModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("my_claims");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showNewModal, setShowNewModal] = useState(false);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, []);
 
-  const fetchClaims = useCallback(
-    async (isRefresh = false) => {
-      if (!currentEmployeeId) {
-        if (!isMountedRef.current) return;
-        if (isRefresh) {
-          setRefreshing(false);
-        } else {
-          setLoading(false);
-        }
-        return;
-      }
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      setSearchTerm(searchInput.trim());
+    }, 500);
+  }, [searchInput]);
 
+  const fetchAnnouncements = useCallback(
+    async (isRefresh = false) => {
       if (!isMountedRef.current) return;
 
       if (!isRefresh) {
@@ -79,57 +98,30 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
       setError(null);
 
       try {
-        // Fetch own claims
-        const filters = [["employee", "=", currentEmployeeId]];
-        if (statusFilter !== "All") {
-          filters.push([
-            "docstatus",
-            "=",
-            statusFilter === "Submitted" ? 1 : 0,
-          ]);
+        const filters = [];
+        if (searchTerm) {
+          filters.push(["subject", "like", `%${searchTerm}%`]);
+        }
+        if (statusFilter !== "all") {
+          filters.push(["status", "=", statusFilter]);
         }
 
-        const myData = await getResourceList("Expense Claim", {
-          filters: JSON.stringify(filters),
-          fields: JSON.stringify([
-            "name",
-            "posting_date",
-            "total_claimed_amount",
-            "approval_status",
-            "employee_name",
-          ]),
-          order_by: "posting_date desc",
-          limit_page_length: 50,
+        const data = await getResourceList(DOCTYPE, {
+          fields: ["*"],
+          filters: [],
+
+          order_by: "modified desc",
+          limit: 10,
+          as_dict: true,
         });
+        console.log("Annocement", data);
 
         if (isMountedRef.current) {
-          setMyClaims(myData || []);
-        }
-
-        // Fetch claims pending for user's approval
-        const approvalData = await getResourceList("Expense Claim", {
-          filters: JSON.stringify([
-            ["expense_approver", "=", currentEmployeeId],
-            ["approval_status", "=", "Pending"],
-          ]),
-          fields: JSON.stringify([
-            "name",
-            "employee_name",
-            "posting_date",
-            "total_claimed_amount",
-            "approval_status",
-          ]),
-          order_by: "posting_date desc",
-          limit_page_length: 50,
-        });
-
-        if (isMountedRef.current) {
-          setClaimsToApprove(approvalData || []);
+          setItems(Array.isArray(data) ? data : []);
         }
       } catch (err) {
-        console.error("Error fetching expense claims:", err);
         if (isMountedRef.current) {
-          setError("Failed to load expense claims.");
+          setError("Failed to load announcements.");
         }
       } finally {
         if (isMountedRef.current) {
@@ -138,27 +130,37 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
         }
       }
     },
-    [currentEmployeeId, statusFilter]
+    [statusFilter, searchTerm],
   );
 
   useEffect(() => {
-    fetchClaims();
-  }, [fetchClaims]);
+    fetchAnnouncements();
+  }, [fetchAnnouncements]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchClaims(true);
+    fetchAnnouncements(true);
   };
 
   const handleItemPress = (item) => {
-    Alert.alert(
-      "Claim Details",
-      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`
-    );
+    const title = item.title || item.subject || item.name;
+    const status = item.status || "N/A";
+    const dateText =
+      item.start_date || item.end_date
+        ? `${formatDate(item.start_date || item.end_date)}`
+        : "";
+    const lines = [];
+    lines.push(`Status: ${status}`);
+    if (dateText) {
+      lines.push(`Date: ${dateText}`);
+    }
+    Alert.alert(title, lines.join("\n"));
   };
 
   const renderItem = ({ item }) => {
-    const status = item.approval_status || "Draft";
+    const title = item.title || item.subject || item.name;
+    const content = cleanHtmlText(item.content || "");
+    const status = item.status || "Draft";
     const statusColor = statusToColorMap[status]?.bg || "#f0f2f5";
     const statusTextColor = statusToColorMap[status]?.text || "#333";
 
@@ -169,16 +171,11 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
       >
         <View style={styles.cardRow}>
           <View style={styles.iconContainer}>
-            <Wallet size={20} color="#555" />
+            <Megaphone size={20} color="#555" />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.employeeName}>
-              {activeTab === "approvals" ? item.employee_name : item.name}
-            </Text>
-            <Text style={styles.dateText}>{formatDate(item.posting_date)}</Text>
-            <Text style={styles.amountText}>
-              ₹ {parseFloat(item.total_claimed_amount || 0).toFixed(2)}
-            </Text>
+            <Text style={styles.titleText}>{title}</Text>
+            <Text style={styles.dateText}>{content}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
             <Text style={[styles.statusText, { color: statusTextColor }]}>
@@ -193,71 +190,69 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.toolbar}>
+        <View style={styles.searchWrapper}>
+          <TextInput
+            style={styles.searchInput}
+            value={searchInput}
+            onChangeText={setSearchInput}
+            placeholder="Search announcements"
+            placeholderTextColor="#999"
+          />
+        </View>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowNewModal(true)}
         >
-          <Plus size={16} color="#fff" />
-          <Text style={styles.addButtonText}>New Claim</Text>
+          <Text style={styles.addButtonText}>New Announcement</Text>
         </TouchableOpacity>
       </View>
 
-      {activeTab === "my_claims" && (
-        <View style={styles.filterContainer}>
-          <Text style={styles.filterLabel}>Filter:</Text>
-          <View style={styles.selectedBadge}>
-            <Text style={styles.selectedBadgeText}>{statusFilter}</Text>
-          </View>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={statusFilter}
-              onValueChange={setStatusFilter}
-              style={styles.picker}
-              mode="dropdown"
-              dropdownIconColor="#271085"
-              prompt="Status"
-            >
-              <Picker.Item label="All" value="All" style={styles.pickerItem} />
-              <Picker.Item
-                label="Draft"
-                value="Draft"
-                style={styles.pickerItem}
-              />
-              <Picker.Item
-                label="Submitted"
-                value="Submitted"
-                style={styles.pickerItem}
-              />
-            </Picker>
-          </View>
+      <View style={styles.filterContainer}>
+        <Text style={styles.filterLabel}>Status:</Text>
+        <View style={styles.selectedBadge}>
+          <Text style={styles.selectedBadgeText}>
+            {statusOptions.find((o) => o.value === statusFilter)?.label ||
+              "All"}
+          </Text>
         </View>
-      )}
+        <View style={styles.pickerWrapper}>
+          <Picker
+            selectedValue={statusFilter}
+            onValueChange={setStatusFilter}
+            style={styles.picker}
+            mode="dropdown"
+            dropdownIconColor="#271085"
+            prompt="Status"
+          >
+            {statusOptions.map((opt) => (
+              <Picker.Item
+                key={opt.value}
+                label={opt.label}
+                value={opt.value}
+                style={styles.pickerItem}
+              />
+            ))}
+          </Picker>
+        </View>
+      </View>
 
       <View style={styles.listHeaderBar}>
         <View style={styles.listHeaderLeft}>
-          <ListIcon size={18} color="orange" />
-          <Text style={styles.listHeaderTitle}>
-            {activeTab === "my_claims" ? "My Claims List" : "Pending Approvals"}
-          </Text>
+          <ListIcon size={18} color="#271085" />
+          <Text style={styles.listHeaderTitle}>Announcements</Text>
         </View>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>
-            {activeTab === "my_claims"
-              ? myClaims.length
-              : claimsToApprove.length}
-          </Text>
+          <Text style={styles.badgeText}>{items.length}</Text>
         </View>
       </View>
     </View>
   );
 
-  const activeData = activeTab === "my_claims" ? myClaims : claimsToApprove;
-
   if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading expense claims...</Text>
+        <Text style={styles.loadingText}>Loading announcements...</Text>
       </View>
     );
   }
@@ -266,7 +261,11 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
-        <Button title="Retry" onPress={() => fetchClaims()} color="#007bff" />
+        <Button
+          title="Retry"
+          onPress={() => fetchAnnouncements()}
+          color="#007bff"
+        />
       </View>
     );
   }
@@ -274,7 +273,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={activeData}
+        data={items}
         keyExtractor={(item) => item.name}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -283,19 +282,18 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
         onRefresh={onRefresh}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {activeTab === "my_claims"
-                ? "No expense claims found."
-                : "No pending approvals."}
-            </Text>
+            <Text style={styles.emptyText}>No announcements found.</Text>
           </View>
         }
       />
-      <DoctypeExpenseModal
+      <DoctypeFormModal
         visible={showNewModal}
         onClose={() => setShowNewModal(false)}
-        doctype="Expense Claim"
-        title="Expense Claim"
+        doctype={DOCTYPE}
+        title="Announcement"
+        onSuccess={() => {
+          fetchAnnouncements();
+        }}
       />
     </View>
   );
@@ -304,7 +302,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f7fa", // Match AttendanceScreen
+    backgroundColor: "#f5f7fa",
     padding: 16,
   },
   centered: {
@@ -335,41 +333,25 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
   },
-  viewToggles: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: "#e1e1e1",
+  searchWrapper: {
     flex: 1,
     marginRight: 8,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
   },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  activeTabButton: {
-    backgroundColor: "#271085",
-  },
-  tabButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#555",
-  },
-  activeTabButtonText: {
-    color: "#fff",
+  searchInput: {
+    fontSize: 14,
+    color: "#333",
   },
   addButton: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "#271085",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    gap: 6,
   },
   addButtonText: {
     color: "#fff",
@@ -483,7 +465,7 @@ const styles = StyleSheet.create({
   cardContent: {
     flex: 1,
   },
-  employeeName: {
+  titleText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
@@ -492,12 +474,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
     marginTop: 2,
-  },
-  amountText: {
-    fontSize: 12,
-    color: "#333",
-    marginTop: 2,
-    fontWeight: "500",
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -518,4 +494,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ExpenseClaimScreen;
+export default AnnouncementScreen;

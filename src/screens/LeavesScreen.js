@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -57,6 +57,8 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 400;
 
+  const isMountedRef = useRef(true);
+
   const [leaveBalances, setLeaveBalances] = useState([]);
   const [leaveApplications, setLeaveApplications] = useState([]);
   const [holidays, setHolidays] = useState([]);
@@ -67,19 +69,34 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   const [viewType, setViewType] = useState("list");
   const [showApplyModal, setShowApplyModal] = useState(false);
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const fetchLeaveData = useCallback(
     async (isRefresh = false) => {
       if (!currentEmployeeId) {
-        setError(
-          "Employee ID not available. Please ensure your profile is complete."
-        );
-        if (isRefresh) setRefreshing(false);
-        else setLoading(false);
+        if (isMountedRef.current) {
+          setError(
+            "Employee ID not available. Please ensure your profile is complete."
+          );
+          if (isRefresh) {
+            setRefreshing(false);
+          } else {
+            setLoading(false);
+          }
+        }
         return;
       }
 
-      if (!isRefresh) setLoading(true);
-      setError(null); // Clear previous errors
+      if (!isMountedRef.current) return;
+
+      if (!isRefresh) {
+        setLoading(true);
+      }
+      setError(null);
 
       try {
         // Fetch employee to get assigned holiday list
@@ -104,7 +121,9 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
             );
           }
         }
-        setHolidays(holidaysList);
+        if (isMountedRef.current) {
+          setHolidays(holidaysList);
+        }
 
         // Fetch Leave Ledger
         const ledgerEntries = await getResourceList("Leave Ledger Entry", {
@@ -139,7 +158,9 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
             color: getLeaveColor(type),
           };
         });
-        setLeaveBalances(balances);
+        if (isMountedRef.current) {
+          setLeaveBalances(balances);
+        }
 
         // Leave Applications
         const leaveApps = await getResourceList("Leave Application", {
@@ -154,7 +175,9 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           order_by: "from_date desc",
           limit_page_length: 20,
         });
-        setLeaveApplications(leaveApps);
+        if (isMountedRef.current) {
+          setLeaveApplications(leaveApps || []);
+        }
 
         // Attendance (optional)
         const attendance = await getResourceList("Attendance", {
@@ -162,18 +185,26 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           fields: JSON.stringify(["attendance_date", "status"]),
           limit_page_length: 100,
         });
-        setAttendanceRecords(attendance);
+        if (isMountedRef.current) {
+          setAttendanceRecords(attendance || []);
+        }
       } catch (err) {
         console.error("🔥 Error fetching leave data:", err);
-        // More user-friendly error display
-        Alert.alert(
-          "Error",
-          "Failed to load leave data. Please check your internet connection or try again later."
-        );
-        setError("Failed to fetch leave data.");
+        if (isMountedRef.current) {
+          Alert.alert(
+            "Error",
+            "Failed to load leave data. Please check your internet connection or try again later."
+          );
+          setError("Failed to fetch leave data.");
+        }
       } finally {
-        if (isRefresh) setRefreshing(false);
-        else setLoading(false);
+        if (isMountedRef.current) {
+          if (isRefresh) {
+            setRefreshing(false);
+          } else {
+            setLoading(false);
+          }
+        }
       }
     },
     [currentEmployeeId]

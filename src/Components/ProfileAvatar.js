@@ -29,17 +29,25 @@ const ProfileAvatar = ({ imagePath, employeeName, size = 60 }) => {
       }
 
       try {
-        const res = await fetch(getFrappeBaseUrl() + imagePath, {
-          credentials: "include",
-        });
-
-        if (res.ok && isMounted) {
-          setImageUri(res.url);
-        } else {
-          setError(true);
+        const raw = String(imagePath || "").trim();
+        // If imagePath is already a full URL, use it directly
+        if (/^https?:\/\//i.test(raw)) {
+          if (isMounted) {
+            setImageUri(raw);
+          }
+          return;
         }
-      } catch (e) {
-        setError(true);
+
+        const base = getFrappeBaseUrl();
+        if (!base) {
+          setError(true);
+          return;
+        }
+        const url = `${base}${raw.startsWith("/") ? raw : `/${raw}`}`;
+        const encoded = encodeURI(url);
+        if (isMounted) {
+          setImageUri(encoded);
+        }
       } finally {
         isMounted && setLoading(false);
       }
@@ -76,6 +84,7 @@ const ProfileAvatar = ({ imagePath, employeeName, size = 60 }) => {
           styles.avatar,
           { width: size, height: size, borderRadius: size / 2 },
         ]}
+        onError={() => setError(true)}
       />
     );
   }

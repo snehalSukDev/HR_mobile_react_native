@@ -15,6 +15,55 @@ import { useFocusEffect } from "@react-navigation/native";
 import { BellOff } from "lucide-react-native";
 import { callFrappeMethod } from "../utils/frappeApi";
 
+function cleanHtmlText(input) {
+  try {
+    if (!input) return "";
+    const s = String(input);
+    return s
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return String(input || "");
+  }
+}
+
+function decodeEntities(s) {
+  return String(s || "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"');
+}
+
+function parseInlineSegments(input) {
+  if (!input) return [];
+  const keepTags = input.replace(/<(?!\/?(strong|b)\b)[^>]*>/gi, "");
+  const parts = keepTags.split(/(<\/?strong[^>]*>|<\/?b[^>]*>)/i);
+  const segments = [];
+  let bold = false;
+  for (const p of parts) {
+    if (!p) continue;
+    if (/^<\s*(strong|b)\b[^>]*>$/i.test(p)) {
+      bold = true;
+      continue;
+    }
+    if (/^<\s*\/\s*(strong|b)\s*>$/i.test(p)) {
+      bold = false;
+      continue;
+    }
+    const txt = decodeEntities(p).replace(/\s+/g, " ").trim();
+    if (txt) segments.push({ text: txt, bold });
+  }
+  return segments;
+}
+
 const NotificationScreen = ({
   currentUserEmail,
   currentEmployeeId,
@@ -33,6 +82,7 @@ const NotificationScreen = ({
         "frappe.desk.doctype.notification_log.notification_log.get_notification_logs"
       );
       setNotify(message?.notification_logs || []);
+      console.log("Notification API response:", message);
       setUserInfo(message?.user_info || null);
     } catch (e) {
       setNotify([]);
@@ -67,7 +117,10 @@ const NotificationScreen = ({
       ? "frappe.desk.doctype.notification_log.notification_log.mark_as_unread"
       : "frappe.desk.doctype.notification_log.notification_log.mark_as_read";
     try {
-      await callFrappeMethod(method, { notification_log: notif?.name });
+      const res = await callFrappeMethod(method, {
+        notification_log: notif?.name,
+      });
+      console.log("Notification update response:", res);
       setNotify((prev) =>
         prev.map((n) =>
           n?.name === notif?.name ? { ...n, read: isRead ? 0 : 1 } : n
@@ -113,12 +166,14 @@ const NotificationScreen = ({
         </View>
       ) : generalNotifications.length > 0 ? (
         generalNotifications.map((notif) => {
-          const title =
+          const rawTitle =
             notif?.subject ||
             notif?.email_content ||
             notif?.document_name ||
             notif?.name ||
             "Notification";
+          const titleSegments = parseInlineSegments(rawTitle);
+
           const created = notif?.creation
             ? new Date(notif.creation).toLocaleString()
             : "";
@@ -135,7 +190,13 @@ const NotificationScreen = ({
             >
               <View style={styles.cardTopRow}>
                 <Text style={styles.cardTitle} numberOfLines={2}>
-                  {title}
+                  {titleSegments.length > 0
+                    ? titleSegments.map((seg, i) => (
+                        <Text key={i} style={seg.bold ? styles.boldText : null}>
+                          {seg.text + " "}
+                        </Text>
+                      ))
+                    : cleanHtmlText(rawTitle)}
                 </Text>
                 <View
                   style={[
@@ -231,6 +292,9 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 12,
     marginTop: 6,
+  },
+  boldText: {
+    fontWeight: "700",
   },
   badge: {
     paddingHorizontal: 10,

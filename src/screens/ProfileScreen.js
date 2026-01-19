@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -37,21 +37,35 @@ import {
 const TABS = ["Details"];
 
 const ProfileScreen = ({ currentUserEmail, onLogout }) => {
+  const isMountedRef = useRef(true);
   const [employeeProfile, setEmployeeProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("Details");
   const [aboutOpen, setAboutOpen] = useState(true);
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const fetchProfile = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setLoading(true);
     try {
       const profile = await fetchEmployeeDetails(currentUserEmail, true);
-      setEmployeeProfile(profile);
+      if (isMountedRef.current) {
+        setEmployeeProfile(profile);
+      }
     } catch (err) {
-      setError(err.message || "Unknown error");
+      if (isMountedRef.current) {
+        setError(err.message || "Unknown error");
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [currentUserEmail]);
 
@@ -66,7 +80,9 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
       fields: JSON.stringify(["log_type"]),
       order_by: "time asc",
     });
-    setCheckins(data || []);
+    if (isMountedRef.current) {
+      setCheckins(data || []);
+    }
   }, []);
 
   useEffect(() => {
@@ -91,10 +107,14 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
         doc: JSON.stringify(doc),
         action: "Save",
       });
-      Alert.alert("Success", `Checked ${logType}`);
+      if (isMountedRef.current) {
+        Alert.alert("Success", `Checked ${logType}`);
+      }
       fetchCheckins();
     } catch (e) {
-      Alert.alert("Error", "Check-in failed");
+      if (isMountedRef.current) {
+        Alert.alert("Error", "Check-in failed");
+      }
     }
   };
 
@@ -113,7 +133,7 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
       </View>
     );
   }
-
+  console.log("employeeProfile", employeeProfile);
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.profileCard}>

@@ -21,6 +21,7 @@ import {
   loginUser,
   setFrappeBaseUrl,
 } from "../utils/frappeApi";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ✅ Background image import
 const bgImage = require("../assests/login/bg3.png");
@@ -78,8 +79,10 @@ const LoginScreen = ({ onLoginSuccess }) => {
       setLoading(true);
       const fullUrl = `https://${normalizeSite(siteName)}`;
       setFrappeBaseUrl(fullUrl);
+      await AsyncStorage.setItem("frappeBaseUrl", fullUrl);
       const res = await loginUser(email, password);
       if (res?.message === "Logged In") {
+        await AsyncStorage.setItem("currentUserEmail", email);
         onLoginSuccess();
       } else {
         Alert.alert("Login Failed", "Invalid credentials");
