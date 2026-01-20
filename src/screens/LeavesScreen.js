@@ -519,6 +519,11 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         }}
         doctype={doctype}
         title="Leave Application"
+        hiddenFields={[
+          "leave_balance",
+          "salary_slip",
+          "letter_head",
+        ]}
       />
     </View>
   );

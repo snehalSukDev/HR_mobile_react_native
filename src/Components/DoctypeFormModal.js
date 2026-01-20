@@ -136,7 +136,14 @@ const DoctypeFormFields = React.memo(
   },
 );
 
-const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
+const DoctypeFormModal = ({
+  visible,
+  onClose,
+  doctype,
+  title,
+  onSuccess,
+  hiddenFields = [],
+}) => {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [invalidFields, setInvalidFields] = useState({});
@@ -174,7 +181,12 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
 
         if (metaCacheRef.current[doctype]) {
           if (isMountedRef.current) {
-            setFields(metaCacheRef.current[doctype]);
+            // Apply hiddenFields filter even if cached
+            const cachedFields = metaCacheRef.current[doctype];
+            const filteredCached = cachedFields.filter(
+              (f) => !hiddenFields.includes(f.fieldname),
+            );
+            setFields(filteredCached);
           }
           setLoading(false);
           return;
@@ -185,7 +197,7 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
 
         const filtered = (res.fields || []).filter(
           (f) =>
-            [
+            ([
               "Data",
               "Date",
               "Int",
@@ -196,9 +208,22 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
               "Check",
               "Small Text",
               "Text",
-            ].includes(f.fieldtype) &&
-            !f.hidden &&
-            !["amended_from", "naming_series"].includes(f.fieldname),
+              "Text Editor",
+              "Long Text",
+              "HTML Editor",
+              "Code",
+              "Markdown Editor",
+              "Rich Text",
+            ].includes(f.fieldtype) ||
+              ["description", "content", "message_content"].includes(
+                f.fieldname,
+              )) &&
+            !["amended_from", "naming_series"].includes(f.fieldname) &&
+            !hiddenFields.includes(f.fieldname) &&
+            (!f.hidden ||
+              ["description", "content", "message_content"].includes(
+                f.fieldname,
+              )),
         );
 
         metaCacheRef.current[doctype] = filtered;

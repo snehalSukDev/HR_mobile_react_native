@@ -51,7 +51,7 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
       typeof field.options === "string"
         ? field.options.split("\n").filter(Boolean)
         : [];
-        
+
     if (options.length === 0) return null;
 
     return (
@@ -117,7 +117,16 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
 
   // Text, Data, Int, Float, Currency, Small Text
   const isNumeric = ["Int", "Float", "Currency"].includes(field.fieldtype);
-  const isMultiline = ["Small Text", "Text"].includes(field.fieldtype);
+  const isMultiline = [
+    "Small Text",
+    "Text",
+    "Text Editor",
+    "Long Text",
+    "HTML Editor",
+    "Code",
+    "Markdown Editor",
+    "Rich Text",
+  ].includes(field.fieldtype);
 
   return (
     <View style={styles.container}>
@@ -126,9 +135,9 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
       </Text>
       <TextInput
         style={[
-            styles.input, 
-            error && styles.inputError,
-            isMultiline && styles.textArea
+          styles.input,
+          error && styles.inputError,
+          isMultiline && styles.textArea,
         ]}
         value={value == null ? "" : String(value)}
         onChangeText={handleChange}
@@ -162,8 +171,8 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   textArea: {
-      height: 80,
-      textAlignVertical: 'top'
+    height: 80,
+    textAlignVertical: "top",
   },
   inputError: {
     borderColor: "red",

@@ -294,6 +294,17 @@ const AnnouncementScreen = () => {
         onSuccess={() => {
           fetchAnnouncements();
         }}
+        hiddenFields={[
+          "expire_notification_on",
+          "filter_type",
+          "add_manually",
+          "exclude_filtered_data",
+          "designation",
+          "department",
+          "branch",
+          "grade",
+          "role",
+        ]}
       />
     </View>
   );

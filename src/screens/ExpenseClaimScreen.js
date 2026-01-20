@@ -12,15 +12,10 @@ import {
 } from "react-native";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
-import {
-  Wallet,
-  Plus,
-  List as ListIcon,
-  DollarSign,
-} from "lucide-react-native";
+import { Wallet, Plus, List as ListIcon } from "lucide-react-native";
 import { format, parseISO } from "date-fns";
-import DoctypeFormModal from "../Components/DoctypeFormModal";
 import DoctypeExpenseModal from "../Components/DoctypeExpenseModal";
+import { getCurrentUser, fetchEmployeeDetails } from "../utils/frappeApi";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -52,16 +47,39 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("my_claims");
+  const [effectiveEmployeeId, setEffectiveEmployeeId] =
+    useState(currentEmployeeId);
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
   }, []);
 
+  useEffect(() => {
+    if (currentEmployeeId) {
+      setEffectiveEmployeeId(currentEmployeeId);
+    } else {
+      (async () => {
+        try {
+          const { email } = await getCurrentUser();
+          if (email) {
+            const emp = await fetchEmployeeDetails(email, true);
+            if (isMountedRef.current && emp?.name) {
+              setEffectiveEmployeeId(emp.name);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch employee ID", e);
+        }
+      })();
+    }
+  }, [currentEmployeeId]);
+
   const fetchClaims = useCallback(
     async (isRefresh = false) => {
-      if (!currentEmployeeId) {
+      if (!effectiveEmployeeId) {
         if (!isMountedRef.current) return;
         if (isRefresh) {
           setRefreshing(false);
@@ -80,7 +98,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
 
       try {
         // Fetch own claims
-        const filters = [["employee", "=", currentEmployeeId]];
+        const filters = [["employee", "=", effectiveEmployeeId]];
         if (statusFilter !== "All") {
           filters.push([
             "docstatus",
@@ -109,7 +127,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
         // Fetch claims pending for user's approval
         const approvalData = await getResourceList("Expense Claim", {
           filters: JSON.stringify([
-            ["expense_approver", "=", currentEmployeeId],
+            ["expense_approver", "=", effectiveEmployeeId],
             ["approval_status", "=", "Pending"],
           ]),
           fields: JSON.stringify([
@@ -118,6 +136,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
             "posting_date",
             "total_claimed_amount",
             "approval_status",
+            "employee_name", // ensure employee_name is fetched for approvals
           ]),
           order_by: "posting_date desc",
           limit_page_length: 50,
@@ -138,7 +157,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
         }
       }
     },
-    [currentEmployeeId, statusFilter],
+    [effectiveEmployeeId, statusFilter],
   );
 
   useEffect(() => {
@@ -315,6 +334,22 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
         onClose={() => setShowNewModal(false)}
         doctype="Expense Claim"
         title="Expense Claim"
+        hiddenFields={[
+          "total_sanctioned_amount",
+          "total_taxes_and_charges",
+          "total_advance_amount",
+          "reference_doctype",
+          "delivery_trip",
+          "vehicle_log",
+          "task",
+          "cost_center",
+          "project",
+          "mode_of_payment",
+          "is_paid",
+          "payable_account",
+          "clearance_date",
+          "total_amount_reimbursed",
+        ]}
       />
     </View>
   );

@@ -40,6 +40,7 @@ const DoctypeExpenseModal = ({
   doctype,
   title,
   onSuccess,
+  hiddenFields = [],
 }) => {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +79,10 @@ const DoctypeExpenseModal = ({
         const cached = metaCacheRef.current[doctype];
         if (cached && Array.isArray(cached.fields)) {
           if (!isMountedRef.current) return;
-          setFields(cached.fields);
+          const filteredCached = cached.fields.filter(
+            (f) => !hiddenFields.includes(f.fieldname),
+          );
+          setFields(filteredCached);
           setChildTables(
             Array.isArray(cached.childTables) ? cached.childTables : [],
           );
@@ -104,9 +108,16 @@ const DoctypeExpenseModal = ({
               "Check",
               "Small Text",
               "Text",
+              "Text Editor",
+              "Long Text",
+              "HTML Editor",
+              "Code",
+              "Markdown Editor",
+              "Rich Text",
             ].includes(f.fieldtype) &&
             !f.hidden &&
-            !["amended_from", "naming_series"].includes(f.fieldname),
+            !["amended_from", "naming_series"].includes(f.fieldname) &&
+            !hiddenFields.includes(f.fieldname),
         );
 
         const tables = [];
@@ -138,6 +149,12 @@ const DoctypeExpenseModal = ({
                   "Check",
                   "Small Text",
                   "Text",
+                  "Text Editor",
+                  "Long Text",
+                  "HTML Editor",
+                  "Code",
+                  "Markdown Editor",
+                  "Rich Text",
                   "Table",
                 ].includes(cf.fieldtype) &&
                 !cf.hidden,

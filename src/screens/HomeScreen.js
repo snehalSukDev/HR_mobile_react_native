@@ -48,7 +48,7 @@ import {
 } from "lucide-react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProfileAvatar from "../Components/ProfileAvatar";
-import MapView, { Marker } from "react-native-maps";
+// import MapView, { Marker } from "react-native-maps";
 export default function HomeScreen({ navigation, currentUserEmail }) {
   const isMountedRef = useRef(true);
   const [employeeProfile, setEmployeeProfile] = useState(null);
@@ -68,8 +68,8 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   const knobSize = 44;
   const maxDistance = Math.max(trackWidth - knobSize, 0);
   const [coords, setCoords] = useState(null);
-  const [mapError, setMapError] = useState(false);
-  const [mapEnabled, setMapEnabled] = useState(false);
+  // const [mapError, setMapError] = useState(false);
+  // const [mapEnabled, setMapEnabled] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -370,57 +370,16 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
             </View>
             <View style={styles.sectionBody}>
               {coords &&
-              !mapError &&
-              mapEnabled &&
               typeof coords.latitude === "number" &&
               typeof coords.longitude === "number" &&
               !Number.isNaN(coords.latitude) &&
               !Number.isNaN(coords.longitude) ? (
-                <MapView
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: coords.latitude,
-                    longitude: coords.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  liteMode={Platform.OS === "android"}
-                  onError={() => setMapError(true)}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: coords.latitude,
-                      longitude: coords.longitude,
-                    }}
-                    title="You are here"
-                  />
-                </MapView>
-              ) : mapError ? (
-                <Text style={styles.sectionText}>
-                  Unable to display map. Please check location services.
-                </Text>
-              ) : coords ? (
                 <View>
                   <Text style={styles.sectionText}>
                     Location detected: {coords.latitude.toFixed(5)},{" "}
                     {coords.longitude.toFixed(5)}
                   </Text>
                   <View style={{ flexDirection: "row", marginTop: 8 }}>
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: "#271085",
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        marginRight: 10,
-                      }}
-                      onPress={() => setMapEnabled(true)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={{ color: "#fff", fontWeight: "600" }}>
-                        Show Map
-                      </Text>
-                    </TouchableOpacity>
                     <TouchableOpacity
                       style={{
                         backgroundColor: "#e9ecef",
