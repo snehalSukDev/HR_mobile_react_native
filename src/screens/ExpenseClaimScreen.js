@@ -138,7 +138,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
         }
       }
     },
-    [currentEmployeeId, statusFilter]
+    [currentEmployeeId, statusFilter],
   );
 
   useEffect(() => {
@@ -153,7 +153,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const handleItemPress = (item) => {
     Alert.alert(
       "Claim Details",
-      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`
+      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`,
     );
   };
 
@@ -193,6 +193,25 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.toolbar}>
+        <View style={styles.viewToggles}>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "my_claims" && styles.activeTabButton,
+            ]}
+            onPress={() => setActiveTab("my_claims")}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                activeTab === "my_claims" && styles.activeTabButtonText,
+              ]}
+            >
+              My Claims
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowNewModal(true)}

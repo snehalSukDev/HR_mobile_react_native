@@ -107,7 +107,8 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
         return true;
       } catch (e) {
         if (isMountedRef.current) {
-          Alert.alert("Error", "Check-in failed");
+          const msg = e.serverMessagesText || e.message || "Check-in failed";
+          Alert.alert("Error", msg);
         }
         return false;
       } finally {
@@ -117,7 +118,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
         }
       }
     },
-    [employeeProfile, fetchCheckins, isPunching]
+    [employeeProfile, fetchCheckins, isPunching],
   );
   const panResponder = React.useMemo(
     () =>
@@ -191,7 +192,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           }
         },
       }),
-    [punchedIn, maxDistance, isPunching, runCheck]
+    [punchedIn, maxDistance, isPunching, runCheck],
   );
 
   const [events, setEvents] = useState({
@@ -207,7 +208,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
         "tbui_backend_core.api.events_today",
         {
           employee_id: employeeProfile.name,
-        }
+        },
       );
       const message = data || {};
       if (isMountedRef.current) {
@@ -429,7 +430,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
                       }}
                       onPress={() =>
                         Linking.openURL(
-                          `geo:${coords.latitude},${coords.longitude}?q=${coords.latitude},${coords.longitude}`
+                          `geo:${coords.latitude},${coords.longitude}?q=${coords.latitude},${coords.longitude}`,
                         )
                       }
                       activeOpacity={0.8}
@@ -532,7 +533,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               </View>
               <Text style={styles.quickIconLabel}>Expense Claim</Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.quickIconItem}
               onPress={() => navigation.navigate("Shift")}
             >
@@ -540,7 +541,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
                 <Layers size={22} color="#fff" />
               </View>
               <Text style={styles.quickIconLabel}>Shift Roaster</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={styles.quickIconItem}
               onPress={() => navigation.navigate("Attendance")}

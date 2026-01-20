@@ -47,7 +47,7 @@ const getMonthRange = ({ year, month }) => {
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
   const endDate = new Date(year, month, 0);
   const end = `${endDate.getFullYear()}-${String(
-    endDate.getMonth() + 1
+    endDate.getMonth() + 1,
   ).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
   return { start, end };
 };
@@ -78,7 +78,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
     month: today.getMonth() + 1,
   }));
   const [selectedDate, setSelectedDate] = useState(
-    today.toISOString().split("T")[0]
+    today.toISOString().split("T")[0],
   );
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [loadedCalendarMonthKey, setLoadedCalendarMonthKey] = useState(null);
@@ -92,7 +92,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const calendarCurrent = useMemo(() => {
     return `${calendarMonth.year}-${String(calendarMonth.month).padStart(
       2,
-      "0"
+      "0",
     )}-01`;
   }, [calendarMonth.month, calendarMonth.year]);
   const normalizedViewType = viewType === "calender" ? "calendar" : viewType;
@@ -142,7 +142,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
         }
       }
     },
-    [currentEmployeeId]
+    [currentEmployeeId],
   );
 
   useEffect(() => {
@@ -230,7 +230,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
         }
       }
     },
-    [currentEmployeeId]
+    [currentEmployeeId],
   );
 
   useEffect(() => {
@@ -443,7 +443,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               const key = day.dateString;
               setSelectedDate(key);
               const attendance = monthAttendanceList.find(
-                (a) => (a.attendance_date || "").split("T")[0] === key
+                (a) => (a.attendance_date || "").split("T")[0] === key,
               );
               const holiday = holidays.find((h) => h.date === key);
               const status = attendance?.status || (holiday ? "Holiday" : null);
@@ -588,13 +588,13 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               {renderDetailRow(
                 "Employee",
                 selectedAttendanceDetails?.employee_name ||
-                  selectedAttendanceDetails?.employee
+                  selectedAttendanceDetails?.employee,
               )}
               {renderDetailRow(
                 "Date",
                 selectedAttendanceDetails?.attendance_date
                   ? formatDate(selectedAttendanceDetails.attendance_date)
-                  : null
+                  : null,
               )}
               {renderDetailRow("Status", selectedAttendanceDetails?.status)}
               {renderDetailRow("Shift", selectedAttendanceDetails?.shift)}
@@ -602,13 +602,13 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               {renderDetailRow("Out Time", selectedAttendanceDetails?.out_time)}
               {renderDetailRow(
                 "Working Hours",
-                selectedAttendanceDetails?.working_hours
+                selectedAttendanceDetails?.working_hours,
               )}
               {renderDetailRow(
                 "Modified",
                 selectedAttendanceDetails?.modified
                   ? formatDate(selectedAttendanceDetails.modified)
-                  : null
+                  : null,
               )}
             </View>
           </View>
@@ -617,12 +617,6 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
       <DoctypeFormModal
         visible={showApplyModal}
         onClose={() => setShowApplyModal(false)}
-        onSuccess={() => {
-          fetchRecentAttendance(true);
-          if (normalizedViewType === "calendar") {
-            fetchMonthAttendance(calendarMonth, true);
-          }
-        }}
         doctype={"Attendance Request"}
         title="Attendance Request"
       />

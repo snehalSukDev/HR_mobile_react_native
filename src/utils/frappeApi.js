@@ -64,10 +64,11 @@ async function frappeFetch(path, options = {}) {
       const logFn = is404 ? console.warn : console.error;
       logFn(
         `[FrappeAPI] API Error (${response.status} ${response.statusText}):`,
-        errorData
+        errorData,
       );
       throw new Error(
-        errorData.message || `API request failed with status ${response.status}`
+        errorData.message ||
+          `API request failed with status ${response.status}`,
       );
     }
 
@@ -99,7 +100,7 @@ export async function loginUser(email, password) {
         .catch(() => ({ message: response.statusText }));
       console.error("[FrappeAPI] Login Error:", errorData);
       throw new Error(
-        errorData.message || `Login failed with status ${response.status}`
+        errorData.message || `Login failed with status ${response.status}`,
       );
     }
 
@@ -109,7 +110,7 @@ export async function loginUser(email, password) {
       return { success: true, message: data.message };
     } else {
       throw new Error(
-        data.message || "Login failed: Unexpected response from server."
+        data.message || "Login failed: Unexpected response from server.",
       );
     }
   } catch (error) {
@@ -177,6 +178,7 @@ export async function fetchEmployeeDetails(identifier, byEmail = true) {
     "employment_type",
     "person_to_be_contacted",
     "emergency_phone_number",
+    "company",
   ];
 
   if (byEmail) {
@@ -188,8 +190,8 @@ export async function fetchEmployeeDetails(identifier, byEmail = true) {
   try {
     const data = await frappeFetch(
       `/api/resource/Employee?filters=${JSON.stringify(
-        filters
-      )}&fields=${JSON.stringify(fields)}`
+        filters,
+      )}&fields=${JSON.stringify(fields)}`,
     );
     if (data && data.data && data.data.length > 0) {
       return data.data[0];
@@ -231,7 +233,7 @@ export async function getResourceList(doctype, params = {}) {
 
   try {
     const data = await frappeFetch(
-      `/api/resource/${encodeURIComponent(doctype)}?${queryParams.toString()}`
+      `/api/resource/${encodeURIComponent(doctype)}?${queryParams.toString()}`,
     );
     return data.data;
   } catch (error) {
@@ -244,7 +246,7 @@ export async function getResourceList(doctype, params = {}) {
 export async function getResource(doctype, name) {
   try {
     const data = await frappeFetch(
-      `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`
+      `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
     );
     return data.data;
   } catch (error) {
@@ -259,7 +261,7 @@ export async function callFrappeMethod(method, args = {}) {
     const res = await axiosInstance.post(
       `api/method/${method}`,
       qs.stringify(args),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
 
     console.log("Frappe method call response:", res);
@@ -295,7 +297,7 @@ export async function logoutUser() {
         .catch(() => ({ message: response.statusText }));
       console.error("[FrappeAPI] Logout Error:", errorData);
       throw new Error(
-        errorData.message || `Logout failed with status ${response.status}`
+        errorData.message || `Logout failed with status ${response.status}`,
       );
     }
 
@@ -325,7 +327,7 @@ export async function getMetaData(doctype) {
   try {
     const res = await axiosInstance.get(
       `/api/method/frappe.desk.form.load.getdoctype`,
-      { params: { doctype } }
+      { params: { doctype } },
     );
     const docs = res?.data?.message?.docs || res?.data?.docs || [];
     const fields = Array.isArray(docs) && docs[0]?.fields ? docs[0].fields : [];
@@ -340,7 +342,7 @@ export async function fnSearchLink(
   linkDoctype = "",
   ignore_user_permissions = 0,
   reference_doctype = "",
-  filter = { query: "", filters: {} }
+  filter = { query: "", filters: {} },
 ) {
   try {
     const payload = {
@@ -359,7 +361,7 @@ export async function fnSearchLink(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         },
-      }
+      },
     );
     const d = response?.data;
     if (Array.isArray(d?.data)) return d.data;
@@ -384,7 +386,7 @@ export async function saveDoc(doc) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-      }
+      },
     );
 
     return res.data;
@@ -393,7 +395,7 @@ export async function saveDoc(doc) {
     console.error("Save Doc Error:", data || error);
     const err = new Error(
       (typeof data?.message === "string" && data.message) ||
-        "Failed to save document"
+        "Failed to save document",
     );
     err.serverMessagesText = parseFrappeServerMessages(data?._server_messages);
     err.raw = data;
@@ -433,7 +435,7 @@ export async function submitSavedDoc(saved, fallbackDoc) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-      }
+      },
     );
     return res.data?.message;
   } catch (error) {
@@ -441,7 +443,7 @@ export async function submitSavedDoc(saved, fallbackDoc) {
     console.error("Submit Doc Error:", data || error);
     const err = new Error(
       (typeof data?.message === "string" && data.message) ||
-        "Failed to submit document"
+        "Failed to submit document",
     );
     err.serverMessagesText = parseFrappeServerMessages(data?._server_messages);
     err.raw = data;

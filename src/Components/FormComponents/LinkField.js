@@ -7,12 +7,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Keyboard,
 } from "react-native";
 import { fnSearchLink, getResource } from "../../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
 
-const MIN_SEARCH_LENGTH = 2;
-const SEARCH_DEBOUNCE_MS = 600;
+const MIN_SEARCH_LENGTH = 0;
+const SEARCH_DEBOUNCE_MS = 200;
 const MAX_LINK_RESULTS = 25;
 
 const LinkField = ({
@@ -30,6 +31,7 @@ const LinkField = ({
 
   const isMountedRef = useRef(true);
   const debounceTimerRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -47,7 +49,8 @@ const LinkField = ({
 
   const fetchResults = useCallback(
     async (searchText) => {
-      if (!searchText || searchText.length < MIN_SEARCH_LENGTH) {
+      const text = searchText || "";
+      if (text.length < MIN_SEARCH_LENGTH) {
         if (!isMountedRef.current) return;
         setResults([]);
         setIsOpen(false);
@@ -74,7 +77,7 @@ const LinkField = ({
         if (isMountedRef.current) setLoading(false);
       }
     },
-    [field.options, doctype]
+    [field.options, doctype],
   );
 
   const handleFocus = () => {
@@ -90,14 +93,15 @@ const LinkField = ({
 
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
-    if (!text || text.length < MIN_SEARCH_LENGTH) {
+    const searchText = text || "";
+    if (searchText.length < MIN_SEARCH_LENGTH) {
       setResults([]);
       setIsOpen(false);
       return;
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      fetchResults(text);
+      fetchResults(searchText);
     }, SEARCH_DEBOUNCE_MS);
   };
 
@@ -111,6 +115,7 @@ const LinkField = ({
     setLocalValue(val);
     onFieldChange(field.fieldname, val);
     setIsOpen(false);
+    // Do not blur or dismiss keyboard to prevent focus jumps
   };
 
   return (
@@ -120,6 +125,7 @@ const LinkField = ({
       </Text>
       <View>
         <TextInput
+          ref={inputRef}
           style={[styles.input, error && styles.inputError]}
           value={localValue}
           onChangeText={handleTextChange}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ToastAndroid,
   KeyboardAvoidingView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -17,16 +18,129 @@ import {
   getResource,
   saveDoc,
   submitSavedDoc,
+  getCurrentUser,
+  fetchEmployeeDetails,
 } from "../utils/frappeApi";
-import { Formik } from "formik";
+import { Formik, useFormikContext } from "formik";
 import { format } from "date-fns";
 
 import GenericField from "./FormComponents/GenericField";
 import LinkField from "./FormComponents/LinkField";
 
+const DoctypeFormFields = React.memo(
+  ({
+    fields,
+    invalidFields,
+    setInvalidFields,
+    positionsRef,
+    scrollRef,
+    isMountedRef,
+    doctype,
+    onClose,
+  }) => {
+    const { values, setFieldValue, handleSubmit, isSubmitting } =
+      useFormikContext();
+
+    const handleFieldChange = React.useCallback(
+      (fieldname, val) => {
+        setFieldValue(fieldname, val);
+        if (invalidFields[fieldname]) {
+          setInvalidFields((prev) => ({
+            ...prev,
+            [fieldname]: false,
+          }));
+        }
+
+        if (
+          fieldname === "employee" &&
+          typeof val === "string" &&
+          val.trim().length >= 3
+        ) {
+          (async () => {
+            try {
+              if (!isMountedRef.current) return;
+              const emp = await getResource("Employee", val);
+              if (isMountedRef.current && emp?.employee_name) {
+                setFieldValue("employee_name", emp.employee_name);
+              }
+            } catch {}
+          })();
+        }
+      },
+      [setFieldValue, invalidFields, isMountedRef, setInvalidFields],
+    );
+
+    return (
+      <>
+        <ScrollView
+          style={styles.modalBody}
+          ref={scrollRef}
+          keyboardShouldPersistTaps="handled"
+        >
+          {fields.length === 0 ? (
+            <View style={styles.noDataContainer}>
+              <MaterialIcons name="info-outline" size={24} color="#666" />
+              <Text style={styles.noDataText}>No fields available.</Text>
+            </View>
+          ) : (
+            fields.map((f) => {
+              const value = values[f.fieldname];
+
+              return (
+                <View
+                  key={f.fieldname}
+                  onLayout={(e) => {
+                    positionsRef.current[f.fieldname] = e.nativeEvent.layout.y;
+                  }}
+                >
+                  {f.fieldtype === "Link" ? (
+                    <LinkField
+                      field={f}
+                      value={value}
+                      onFieldChange={handleFieldChange}
+                      doctype={doctype}
+                      error={invalidFields[f.fieldname]}
+                    />
+                  ) : (
+                    <GenericField
+                      field={f}
+                      value={value}
+                      onFieldChange={handleFieldChange}
+                      error={invalidFields[f.fieldname]}
+                    />
+                  )}
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+        <View style={styles.modalFooter}>
+          <TouchableOpacity
+            style={[styles.footerButton, { backgroundColor: "#6c757d" }]}
+            onPress={onClose}
+          >
+            <Text style={styles.footerButtonText}>Close</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.footerButton, { backgroundColor: "#007bff" }]}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.footerButtonText}>
+              {isSubmitting ? "Saving..." : "Submit"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </>
+    );
+  },
+);
+
 const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
   const [fields, setFields] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [invalidFields, setInvalidFields] = useState({});
+  const [employeeDetails, setEmployeeDetails] = useState(null);
 
   const scrollRef = useRef(null);
   const positionsRef = useRef({});
@@ -43,12 +157,26 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
   useEffect(() => {
     async function loadMeta() {
       if (!visible) return;
+      setLoading(true);
 
       try {
+        if (!employeeDetails) {
+          try {
+            const { email } = await getCurrentUser();
+            if (email) {
+              const emp = await fetchEmployeeDetails(email, true);
+              if (isMountedRef.current) setEmployeeDetails(emp);
+            }
+          } catch (e) {
+            console.warn("Failed to load employee details for prefill", e);
+          }
+        }
+
         if (metaCacheRef.current[doctype]) {
           if (isMountedRef.current) {
             setFields(metaCacheRef.current[doctype]);
           }
+          setLoading(false);
           return;
         }
 
@@ -70,7 +198,7 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
               "Text",
             ].includes(f.fieldtype) &&
             !f.hidden &&
-            !["amended_from", "naming_series"].includes(f.fieldname)
+            !["amended_from", "naming_series"].includes(f.fieldname),
         );
 
         metaCacheRef.current[doctype] = filtered;
@@ -81,19 +209,31 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
           Alert.alert("Error", "Failed to load form definition");
           onClose();
         }
+      } finally {
+        if (isMountedRef.current) setLoading(false);
       }
     }
     loadMeta();
   }, [visible, doctype]);
 
-  const initialValues = {};
-  fields.forEach((f) => {
-    if (f.fieldtype === "Date" && f.fieldname === "posting_date") {
-      initialValues[f.fieldname] = format(new Date(), "yyyy-MM-dd");
-    } else {
-      initialValues[f.fieldname] = "";
-    }
-  });
+  const initialValues = useMemo(() => {
+    const values = {};
+    fields.forEach((f) => {
+      let val = "";
+      if (f.fieldtype === "Date" && f.fieldname === "posting_date") {
+        val = format(new Date(), "yyyy-MM-dd");
+      } else if (employeeDetails) {
+        if (f.fieldname === "employee") val = employeeDetails.name || "";
+        else if (f.fieldname === "employee_name")
+          val = employeeDetails.employee_name || "";
+        else if (f.fieldname === "department")
+          val = employeeDetails.department || "";
+        else if (f.fieldname === "company") val = employeeDetails.company || "";
+      }
+      values[f.fieldname] = val;
+    });
+    return values;
+  }, [fields, employeeDetails]);
 
   return (
     <Modal
@@ -104,7 +244,7 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
     >
       <View style={styles.modalBackdrop}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.modalContainer}
         >
           <View style={styles.modalHeader}>
@@ -113,192 +253,111 @@ const DoctypeFormModal = ({ visible, onClose, doctype, title, onSuccess }) => {
               <MaterialIcons name="close" size={22} color="#333" />
             </TouchableOpacity>
           </View>
-          <Formik
-            initialValues={initialValues}
-            enableReinitialize
-            onSubmit={async (values, { setSubmitting }) => {
-              const missing = [];
-              fields.forEach((f) => {
-                if (f.reqd) {
-                  const v = values[f.fieldname];
-                  let empty = false;
-                  if (f.fieldtype === "Check") {
-                    empty = v !== true;
-                  } else if (v == null) {
-                    empty = true;
-                  } else if (typeof v === "string") {
-                    empty = v.trim().length === 0;
+          {loading ? (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color="#007bff" />
+            </View>
+          ) : (
+            <Formik
+              initialValues={initialValues}
+              enableReinitialize={false}
+              onSubmit={async (values, { setSubmitting }) => {
+                const missing = [];
+                fields.forEach((f) => {
+                  if (f.reqd) {
+                    const v = values[f.fieldname];
+                    let empty = false;
+                    if (f.fieldtype === "Check") {
+                      empty = v !== true;
+                    } else if (v == null) {
+                      empty = true;
+                    } else if (typeof v === "string") {
+                      empty = v.trim().length === 0;
+                    }
+                    if (empty) missing.push(f.fieldname);
                   }
-                  if (empty) missing.push(f.fieldname);
-                }
-              });
-              if (missing.length > 0) {
-                const nextInvalid = {};
-                missing.forEach((k) => (nextInvalid[k] = true));
-                setInvalidFields(nextInvalid);
-                const first = missing[0];
-                const y = positionsRef.current[first] ?? 0;
-                if (scrollRef.current && typeof y === "number") {
-                  scrollRef.current.scrollTo({
-                    y: Math.max(y - 12, 0),
-                    animated: true,
-                  });
-                }
-                setSubmitting(false);
-                return;
-              } else {
-                setInvalidFields({});
-              }
-              const tempName = `new-${doctype
-                .toLowerCase()
-                .replace(/ /g, "-")}-${Date.now()}`;
-              console.log("onSubmit", values);
-              try {
-                const doc = {
-                  ...values,
-
-                  // Required Frappe meta
-                  doctype,
-                  name: tempName,
-                  docstatus: 0,
-                  __islocal: 1,
-                  __unsaved: 1,
-
-                  // Optional but recommended
-                  posting_date: format(new Date(), "yyyy-MM-dd"),
-                };
-
-                const saved = await saveDoc(doc);
-
-                if (doctype === "Attendance Request") {
-                  await submitSavedDoc(saved, doc);
-                }
-
-                Alert.alert(
-                  "Success",
-                  doctype === "Attendance Request"
-                    ? `${doctype} submitted successfully`
-                    : `${doctype} saved successfully`
-                );
-                if (typeof onSuccess === "function") {
-                  onSuccess({ saved, tempDoc: doc, doctype });
-                }
-                onClose();
-              } catch (err) {
-                const serverText =
-                  (err && err.serverMessagesText) || err.message || String(err);
-                if (Platform.OS === "android") {
-                  ToastAndroid.show(serverText, ToastAndroid.LONG);
+                });
+                if (missing.length > 0) {
+                  const nextInvalid = {};
+                  missing.forEach((k) => (nextInvalid[k] = true));
+                  setInvalidFields(nextInvalid);
+                  const first = missing[0];
+                  const y = positionsRef.current[first] ?? 0;
+                  if (scrollRef.current && typeof y === "number") {
+                    scrollRef.current.scrollTo({
+                      y: Math.max(y - 12, 0),
+                      animated: true,
+                    });
+                  }
+                  setSubmitting(false);
+                  return;
                 } else {
-                  Alert.alert("Error", serverText);
+                  setInvalidFields({});
                 }
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-          >
-            {({ values, setFieldValue, handleSubmit, isSubmitting }) => {
-              const handleFieldChange = (fieldname, val) => {
-                setFieldValue(fieldname, val);
-                if (invalidFields[fieldname]) {
-                  setInvalidFields((prev) => ({ ...prev, [fieldname]: false }));
+                const tempName = `new-${doctype
+                  .toLowerCase()
+                  .replace(/ /g, "-")}-${Date.now()}`;
+                console.log("onSubmit", values);
+                try {
+                  const doc = {
+                    ...values,
+
+                    // Required Frappe meta
+                    doctype,
+                    name: tempName,
+                    docstatus: 0,
+                    __islocal: 1,
+                    __unsaved: 1,
+
+                    // Optional but recommended
+                    posting_date: format(new Date(), "yyyy-MM-dd"),
+                  };
+
+                  const saved = await saveDoc(doc);
+
+                  if (doctype === "Attendance Request") {
+                    await submitSavedDoc(saved, doc);
+                  }
+
+                  Alert.alert(
+                    "Success",
+                    doctype === "Attendance Request"
+                      ? `${doctype} submitted successfully`
+                      : `${doctype} saved successfully`,
+                  );
+                  if (typeof onSuccess === "function") {
+                    onSuccess({ saved, tempDoc: doc, doctype });
+                  }
+                  onClose();
+                } catch (err) {
+                  const serverText =
+                    (err && err.serverMessagesText) ||
+                    err.message ||
+                    String(err);
+                  if (Platform.OS === "android") {
+                    ToastAndroid.show(serverText, ToastAndroid.LONG);
+                  } else {
+                    Alert.alert("Error", serverText);
+                  }
+                } finally {
+                  setSubmitting(false);
                 }
-
-                if (
-                  fieldname === "employee" &&
-                  typeof val === "string" &&
-                  val.trim().length >= 3
-                ) {
-                  (async () => {
-                    try {
-                      if (!isMountedRef.current) return;
-                      const emp = await getResource("Employee", val);
-                      if (isMountedRef.current && emp?.employee_name) {
-                        setFieldValue("employee_name", emp.employee_name);
-                      }
-                    } catch {}
-                  })();
-                }
-              };
-
-              return (
-                <>
-                  <ScrollView
-                    style={styles.modalBody}
-                    ref={scrollRef}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {fields.length === 0 ? (
-                      <View style={styles.noDataContainer}>
-                        <MaterialIcons
-                          name="info-outline"
-                          size={24}
-                          color="#666"
-                        />
-                        <Text style={styles.noDataText}>
-                          No fields available.
-                        </Text>
-                      </View>
-                    ) : (
-                      fields.map((f) => {
-                        const value = values[f.fieldname];
-
-                        return (
-                          <View
-                            key={f.fieldname}
-                            onLayout={(e) => {
-                              positionsRef.current[f.fieldname] =
-                                e.nativeEvent.layout.y;
-                            }}
-                          >
-                            {f.fieldtype === "Link" ? (
-                              <LinkField
-                                field={f}
-                                value={value}
-                                onFieldChange={handleFieldChange}
-                                doctype={doctype}
-                                error={invalidFields[f.fieldname]}
-                              />
-                            ) : (
-                              <GenericField
-                                field={f}
-                                value={value}
-                                onFieldChange={handleFieldChange}
-                                error={invalidFields[f.fieldname]}
-                              />
-                            )}
-                          </View>
-                        );
-                      })
-                    )}
-                  </ScrollView>
-                  <View style={styles.modalFooter}>
-                    <TouchableOpacity
-                      style={[
-                        styles.footerButton,
-                        { backgroundColor: "#6c757d" },
-                      ]}
-                      onPress={onClose}
-                    >
-                      <Text style={styles.footerButtonText}>Close</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.footerButton,
-                        { backgroundColor: "#007bff" },
-                      ]}
-                      onPress={handleSubmit}
-                      disabled={isSubmitting}
-                    >
-                      <Text style={styles.footerButtonText}>
-                        {isSubmitting ? "Saving..." : "Submit"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              );
-            }}
-          </Formik>
+              }}
+            >
+              {(formikProps) => (
+                <DoctypeFormFields
+                  fields={fields}
+                  invalidFields={invalidFields}
+                  setInvalidFields={setInvalidFields}
+                  positionsRef={positionsRef}
+                  scrollRef={scrollRef}
+                  isMountedRef={isMountedRef}
+                  doctype={doctype}
+                  onClose={onClose}
+                />
+              )}
+            </Formik>
+          )}
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -368,6 +427,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: "#666",
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
 });
 
