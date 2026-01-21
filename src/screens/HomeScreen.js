@@ -48,6 +48,7 @@ import {
 } from "lucide-react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProfileAvatar from "../Components/ProfileAvatar";
+import { WebView } from "react-native-webview";
 // import MapView, { Marker } from "react-native-maps";
 export default function HomeScreen({ navigation, currentUserEmail }) {
   const isMountedRef = useRef(true);
@@ -374,31 +375,47 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               typeof coords.longitude === "number" &&
               !Number.isNaN(coords.latitude) &&
               !Number.isNaN(coords.longitude) ? (
-                <View>
-                  <Text style={styles.sectionText}>
-                    Location detected: {coords.latitude.toFixed(5)},{" "}
-                    {coords.longitude.toFixed(5)}
-                  </Text>
-                  <View style={{ flexDirection: "row", marginTop: 8 }}>
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: "#e9ecef",
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                      }}
-                      onPress={() =>
-                        Linking.openURL(
-                          `geo:${coords.latitude},${coords.longitude}?q=${coords.latitude},${coords.longitude}`,
-                        )
-                      }
-                      activeOpacity={0.8}
-                    >
-                      <Text style={{ color: "#271085", fontWeight: "600" }}>
-                        Open in Maps
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                <View
+                  style={{
+                    height: 250,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                >
+                  <WebView
+                    originWhitelist={["*"]}
+                    source={{
+                      html: `
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+                          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+                          <style>
+                            body { margin: 0; padding: 0; }
+                            #map { height: 100vh; width: 100%; }
+                          </style>
+                        </head>
+                        <body>
+                          <div id="map"></div>
+                          <script>
+                            var map = L.map('map', { zoomControl: false }).setView([${coords.latitude}, ${coords.longitude}], 18);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                              maxZoom: 15,
+                              attribution: '&copy; OpenStreetMap contributors'
+                            }).addTo(map);
+                            L.marker([${coords.latitude}, ${coords.longitude}]).addTo(map);
+                          </script>
+                        </body>
+                      </html>
+                    `,
+                    }}
+                    style={{ flex: 1 }}
+                    scrollEnabled={false}
+                  />
                 </View>
               ) : (
                 <Text style={styles.sectionText}>Fetching location...</Text>

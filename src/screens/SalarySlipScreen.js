@@ -10,7 +10,9 @@ import {
   Button,
   Modal,
   Linking,
+  Platform,
 } from "react-native";
+import { WebView } from "react-native-webview";
 import {
   getResourceList,
   callFrappeMethod,
@@ -49,6 +51,8 @@ const SalarySlipScreen = ({
   const [docinfo, setDocinfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   useEffect(() => {
     return () => {
@@ -99,7 +103,7 @@ const SalarySlipScreen = ({
         console.error("Error fetching salary slips:", err);
         if (isMountedRef.current) {
           setError(
-            `Failed to load salary slips: ${err.message || "Unknown error"}`
+            `Failed to load salary slips: ${err.message || "Unknown error"}`,
           );
         }
       } finally {
@@ -109,7 +113,7 @@ const SalarySlipScreen = ({
         }
       }
     },
-    [currentEmployeeId]
+    [currentEmployeeId],
   );
 
   useEffect(() => {
@@ -160,33 +164,37 @@ const SalarySlipScreen = ({
     return `${base}${url}`;
   };
 
-  const getPdfUrl = () => {
+  const getWebViewUrl = () => {
     const base = getFrappeBaseUrl() || "";
     const name = selectedSlip?.name || "";
+
+    // Check for attachment first
+    const att = getAttachmentUrl();
+    if (att) return att;
+
     if (!base || !name) return null;
+
+    // Use printview for WebView rendering
     const params = new URLSearchParams();
     params.append("doctype", "Salary Slip");
     params.append("name", name);
     params.append("format", "Standard");
-    params.append("no_letterhead", "1");
-    params.append("letterhead", "No Letterhead");
-    params.append("settings", "{}");
-    params.append("_lang", "en");
-    return `${base}/api/method/frappe.utils.print_format.download_pdf?${params.toString()}`;
+    return `${base}/printview?${params.toString()}`;
   };
 
   const handleDownload = async () => {
     try {
       if (!isMountedRef.current) return;
       setDownloading(true);
-      const att = getAttachmentUrl();
-      const pdf = getPdfUrl();
-      const url = att || pdf;
+
+      const url = getWebViewUrl();
+
       if (isMountedRef.current) {
         if (!url) {
-          Alert.alert("Download", "No file available to download");
+          Alert.alert("View", "No document available to view");
         } else {
-          await Linking.openURL(url);
+          setPdfUrl(url);
+          setShowPdfModal(true);
         }
       }
     } finally {
@@ -280,6 +288,8 @@ const SalarySlipScreen = ({
           </View>
         }
       />
+
+      {/* Detail Modal */}
       <Modal
         visible={showModal}
         transparent
@@ -336,12 +346,12 @@ const SalarySlipScreen = ({
                     disabled={downloading}
                   >
                     <MaterialIcons
-                      name="file-download"
+                      name="remove-red-eye"
                       size={18}
                       color="#fff"
                     />
                     <Text style={styles.primaryButtonText}>
-                      {downloading ? "Downloading..." : "Download"}
+                      {downloading ? "Loading..." : "View Slip"}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -352,6 +362,54 @@ const SalarySlipScreen = ({
               </View>
             )}
           </View>
+        </View>
+      </Modal>
+
+      {/* PDF/WebView Modal */}
+      <Modal
+        visible={showPdfModal}
+        animationType="slide"
+        onRequestClose={() => setShowPdfModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#fff",
+            paddingTop: Platform.OS === "android" ? 30 : 50,
+          }}
+        >
+          <View style={[styles.modalHeader, { paddingHorizontal: 16 }]}>
+            <Text style={styles.modalTitle}>Salary Slip View</Text>
+            <TouchableOpacity
+              onPress={() => setShowPdfModal(false)}
+              style={{ padding: 4 }}
+            >
+              <MaterialIcons name="close" size={26} color="#333" />
+            </TouchableOpacity>
+          </View>
+          {pdfUrl && (
+            <WebView
+              source={{ uri: pdfUrl }}
+              style={{ flex: 1 }}
+              startInLoadingState
+              renderLoading={() => (
+                <View
+                  style={[
+                    styles.centered,
+                    {
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                    },
+                  ]}
+                >
+                  <ActivityIndicator size="large" color="#271085" />
+                </View>
+              )}
+            />
+          )}
         </View>
       </Modal>
     </View>

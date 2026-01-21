@@ -4,11 +4,11 @@
     "slug": "techbirdhrms",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assests/techbirdlogonew.png",
+    "icon": "./src/assests/techbirdicon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./src/assests/techbirdlogonew.png",
+      "image": "./src/assests/techbirdicon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,13 +18,13 @@
     "android": {
       "package": "in.techbirdit.frappehrms",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assests/techbirdlogonew.png",
+        "foregroundImage": "./src/assests/techbirdicon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./src/assests/techbirdlogonew.png"
+      "favicon": "./src/assests/techbirdicon.png"
     },
     "owner": "snehalsukhadeve",
     "extra": {
