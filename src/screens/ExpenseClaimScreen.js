@@ -10,6 +10,7 @@ import {
   Button,
   Platform,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
 import { Wallet, Plus, List as ListIcon } from "lucide-react-native";
@@ -332,6 +333,10 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
       <DoctypeExpenseModal
         visible={showNewModal}
         onClose={() => setShowNewModal(false)}
+        onSuccess={() => {
+          setShowNewModal(false);
+          fetchClaims(true);
+        }}
         doctype="Expense Claim"
         title="Expense Claim"
         hiddenFields={[

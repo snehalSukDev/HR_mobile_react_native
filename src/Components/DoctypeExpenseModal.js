@@ -308,9 +308,12 @@ const DoctypeExpenseModal = ({
                   };
 
                   const saved = await saveDoc(doc);
+                  
+                  if (!isMountedRef.current) return;
 
                   if (doctype === "Attendance Request") {
                     await submitSavedDoc(saved, doc);
+                    if (!isMountedRef.current) return;
                   }
 
                   Alert.alert(
@@ -324,6 +327,7 @@ const DoctypeExpenseModal = ({
                   }
                   onClose();
                 } catch (err) {
+                  if (!isMountedRef.current) return;
                   const serverText =
                     (err && err.serverMessagesText) ||
                     err.message ||

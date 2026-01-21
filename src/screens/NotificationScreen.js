@@ -69,25 +69,38 @@ const NotificationScreen = ({
   currentEmployeeId,
   onLogout,
 }) => {
+  const isMountedRef = useRef(true);
   const [notify, setNotify] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const fetchNotifications = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setError(null);
     try {
       const message = await callFrappeMethod(
-        "frappe.desk.doctype.notification_log.notification_log.get_notification_logs"
+        "frappe.desk.doctype.notification_log.notification_log.get_notification_logs",
       );
-      setNotify(message?.notification_logs || []);
-      console.log("Notification API response:", message);
-      setUserInfo(message?.user_info || null);
+      if (isMountedRef.current) {
+        setNotify(message?.notification_logs || []);
+        console.log("Notification API response:", message);
+        setUserInfo(message?.user_info || null);
+      }
     } catch (e) {
-      setNotify([]);
-      setUserInfo(null);
-      setError(e?.message || "Failed to load notifications");
+      if (isMountedRef.current) {
+        setNotify([]);
+        setUserInfo(null);
+        setError(e?.message || "Failed to load notifications");
+      }
     }
   }, []);
 
@@ -102,7 +115,7 @@ const NotificationScreen = ({
       return () => {
         alive = false;
       };
-    }, [fetchNotifications])
+    }, [fetchNotifications]),
   );
 
   const onRefresh = useCallback(async () => {
@@ -123,8 +136,8 @@ const NotificationScreen = ({
       console.log("Notification update response:", res);
       setNotify((prev) =>
         prev.map((n) =>
-          n?.name === notif?.name ? { ...n, read: isRead ? 0 : 1 } : n
-        )
+          n?.name === notif?.name ? { ...n, read: isRead ? 0 : 1 } : n,
+        ),
       );
     } catch (e) {
       Alert.alert("Error", e?.message || "Failed to update notification");
@@ -133,7 +146,7 @@ const NotificationScreen = ({
 
   const generalNotifications = useMemo(
     () => (notify || []).filter((item) => item?.document_type !== "Event"),
-    [notify]
+    [notify],
   );
 
   return (

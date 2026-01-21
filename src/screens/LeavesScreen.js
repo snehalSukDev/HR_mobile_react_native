@@ -859,6 +859,7 @@ const styles = StyleSheet.create({
   // Calendar styles
   calendarStyle: {
     borderRadius: 15,
+    overflow: "hidden",
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },

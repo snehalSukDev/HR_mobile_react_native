@@ -51,7 +51,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
           duration: 10000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, []);
 
@@ -81,16 +81,27 @@ const LoginScreen = ({ onLoginSuccess }) => {
       setFrappeBaseUrl(fullUrl);
       await AsyncStorage.setItem("frappeBaseUrl", fullUrl);
       const res = await loginUser(email, password);
+
+      if (!isMountedRef.current) return;
+
       if (res?.message === "Logged In") {
         await AsyncStorage.setItem("currentUserEmail", email);
-        onLoginSuccess();
+        if (isMountedRef.current) {
+          onLoginSuccess();
+        }
       } else {
-        Alert.alert("Login Failed", "Invalid credentials");
+        if (isMountedRef.current) {
+          Alert.alert("Login Failed", "Invalid credentials");
+        }
       }
     } catch (error) {
-      Alert.alert("Error", error.message);
+      if (isMountedRef.current) {
+        Alert.alert("Error", error.message);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

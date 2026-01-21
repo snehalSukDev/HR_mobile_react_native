@@ -26,10 +26,10 @@
     "web": {
       "favicon": "./src/assests/techbirdicon.png"
     },
-    "owner": "snehalsukhadeve",
+    "owner": "snehalmids-organization",
     "extra": {
       "eas": {
-        "projectId": "1e1f65d8-eb13-42c6-ab40-2d44e6b90a7e"
+        "projectId": "0a33c934-aa88-47b6-b7cc-5992dead4935"
       }
     }
   }
