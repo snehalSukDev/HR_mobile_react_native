@@ -1,6 +1,6 @@
 // src/screens/NotificationScreen.js
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  InteractionManager,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { BellOff } from "lucide-react-native";
@@ -92,7 +93,7 @@ const NotificationScreen = ({
       );
       if (isMountedRef.current) {
         setNotify(message?.notification_logs || []);
-        console.log("Notification API response:", message);
+
         setUserInfo(message?.user_info || null);
       }
     } catch (e) {
@@ -107,13 +108,16 @@ const NotificationScreen = ({
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      (async () => {
+      const task = InteractionManager.runAfterInteractions(async () => {
+        if (!alive) return;
         setLoading(true);
         await fetchNotifications();
         if (alive) setLoading(false);
-      })();
+      });
+
       return () => {
         alive = false;
+        task.cancel();
       };
     }, [fetchNotifications]),
   );
@@ -133,7 +137,7 @@ const NotificationScreen = ({
       const res = await callFrappeMethod(method, {
         notification_log: notif?.name,
       });
-      console.log("Notification update response:", res);
+
       setNotify((prev) =>
         prev.map((n) =>
           n?.name === notif?.name ? { ...n, read: isRead ? 0 : 1 } : n,

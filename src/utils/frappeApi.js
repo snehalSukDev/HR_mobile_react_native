@@ -39,7 +39,6 @@ export function getFrappeBaseUrl() {
 // Helper function for making authenticated Frappe API requests
 async function frappeFetch(path, options = {}) {
   const url = `${frappeBaseUrl}${path}`;
-  console.log(`[FrappeAPI] Fetching: ${url}`);
 
   try {
     const response = await fetch(url, {
@@ -82,7 +81,6 @@ async function frappeFetch(path, options = {}) {
 
 // Function for actual user login with Frappe
 export async function loginUser(email, password) {
-  console.log(`[FrappeAPI] Login attempt for user: ${(email, password)}`);
   try {
     const response = await fetch(`${frappeBaseUrl}/api/method/login`, {
       method: "POST",
@@ -106,7 +104,6 @@ export async function loginUser(email, password) {
 
     const data = await response.json();
     if (data.message === "Logged In") {
-      console.log("[FrappeAPI] Login successful for user:", email);
       return { success: true, message: data.message };
     } else {
       throw new Error(
@@ -264,8 +261,6 @@ export async function callFrappeMethod(method, args = {}) {
       { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
 
-    console.log("Frappe method call response:", res);
-
     return res.data?.message ?? res.data;
   } catch (error) {
     const status = error?.response?.status;
@@ -301,7 +296,6 @@ export async function logoutUser() {
       );
     }
 
-    console.log("Logout successful from Frappe.");
     return { success: true, message: "Logout successful" };
   } catch (error) {
     console.error("[FrappeAPI] Network/Logout Fetch Error:", error);

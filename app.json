@@ -4,11 +4,11 @@
     "slug": "techbirdhrms",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assests/techbirdicon.png",
+    "icon": "./src/assests/techbirdbg.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./src/assests/techbirdicon.png",
+      "image": "./src/assests/techbirdbg.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,13 +18,13 @@
     "android": {
       "package": "in.techbirdit.frappehrms",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assests/techbirdicon.png",
+        "foregroundImage": "./src/assests/techbirdbg.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./src/assests/techbirdicon.png"
+      "favicon": "./src/assests/techbirdbg.png"
     },
     "owner": "snehalmids-organization",
     "extra": {

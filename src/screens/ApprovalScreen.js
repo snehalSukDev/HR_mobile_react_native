@@ -65,7 +65,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         setDocTypeTab(next);
       });
     },
-    [docTypeTab]
+    [docTypeTab],
   );
 
   useEffect(() => {
@@ -147,21 +147,23 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         }
       }
     },
-    [currentEmployeeId, statusFilter, expenseStatus, expenseSearch, docTypeTab]
+    [currentEmployeeId, statusFilter, expenseStatus, expenseSearch, docTypeTab],
   );
 
-  useEffect(() => {
-    let canceled = false;
-    const task = InteractionManager.runAfterInteractions(() => {
-      if (canceled) return;
-      if (docTypeTab === "expense") fetchClaims(true);
-      if (docTypeTab === "leave") fetchLeaves(true);
-    });
-    return () => {
-      canceled = true;
-      task && task.cancel && task.cancel();
-    };
-  }, [docTypeTab, fetchClaims, fetchLeaves]);
+  useFocusEffect(
+    useCallback(() => {
+      let canceled = false;
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (canceled) return;
+        if (docTypeTab === "expense") fetchClaims(true);
+        if (docTypeTab === "leave") fetchLeaves(true);
+      });
+      return () => {
+        canceled = true;
+        task && task.cancel && task.cancel();
+      };
+    }, [docTypeTab, fetchClaims, fetchLeaves]),
+  );
 
   const fetchLeaves = useCallback(
     async (isRefresh = false) => {
@@ -213,10 +215,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         }
       }
     },
-    [currentUserEmail, leaveStatus, leaveSearch, docTypeTab]
+    [currentUserEmail, leaveStatus, leaveSearch, docTypeTab],
   );
-
-  useEffect(() => {}, [docTypeTab]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -226,7 +226,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
   const handleItemPress = (item) => {
     Alert.alert(
       "Claim Details",
-      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`
+      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`,
     );
   };
 
@@ -274,7 +274,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         </TouchableOpacity>
       );
     },
-    [activeTab, docTypeTab]
+    [activeTab, docTypeTab],
   );
 
   const handleExpenseStatusChange = async (nextStatus) => {
@@ -293,7 +293,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
     } catch (err) {
       Alert.alert(
         "Update Failed",
-        "Could not update expense status. Please try again."
+        "Could not update expense status. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -464,8 +464,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
             {docTypeTab === "leave"
               ? "Leave Approvals"
               : activeTab === "my_claims"
-              ? "My Claims List"
-              : "Pending Approvals"}
+                ? "My Claims List"
+                : "Pending Approvals"}
           </Text>
         </View>
         <View style={styles.badge}>
@@ -473,8 +473,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
             {docTypeTab === "leave"
               ? leaveList.length
               : activeTab === "my_claims"
-              ? myClaims.length
-              : claimsToApprove.length}
+                ? myClaims.length
+                : claimsToApprove.length}
           </Text>
         </View>
       </View>
@@ -485,8 +485,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
     docTypeTab === "leave"
       ? leaveList
       : activeTab === "my_claims"
-      ? myClaims
-      : claimsToApprove;
+        ? myClaims
+        : claimsToApprove;
 
   if (loading && !refreshing) {
     return (
@@ -523,18 +523,18 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
               s === "Approved"
                 ? "#e8f5e9"
                 : s === "Rejected"
-                ? "#ffebee"
-                : s === "Pending"
-                ? "#fff3e0"
-                : "#f0f2f5";
+                  ? "#ffebee"
+                  : s === "Pending"
+                    ? "#fff3e0"
+                    : "#f0f2f5";
             const statusTextColor =
               s === "Approved"
                 ? "#2e7d32"
                 : s === "Rejected"
-                ? "#c62828"
-                : s === "Pending"
-                ? "#ef6c00"
-                : "#333";
+                  ? "#c62828"
+                  : s === "Pending"
+                    ? "#ef6c00"
+                    : "#333";
             return (
               <TouchableOpacity
                 style={styles.card}
@@ -593,7 +593,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         <FlatList
           data={
             Array.isArray(
-              activeTab === "my_claims" ? myClaims : claimsToApprove
+              activeTab === "my_claims" ? myClaims : claimsToApprove,
             )
               ? activeTab === "my_claims"
                 ? myClaims
@@ -660,7 +660,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                   <Text style={styles.detailValue}>
                     ₹{" "}
                     {parseFloat(
-                      selectedExpense.total_claimed_amount || 0
+                      selectedExpense.total_claimed_amount || 0,
                     ).toFixed(2)}
                   </Text>
                 </View>

@@ -144,9 +144,9 @@ function HomeStack({
             </View>
           ),
         })}
-        >
-          {(props) => (
-            <ExpenseClaimScreen
+      >
+        {(props) => (
+          <ExpenseClaimScreen
             {...props}
             currentUserEmail={currentUserEmail}
             currentEmployeeId={currentEmployeeId}
@@ -460,7 +460,7 @@ export default function AppNavigator({
               )}
             </Drawer.Screen>
 
-            <Drawer.Screen
+            {/* <Drawer.Screen
               name="Notifications"
               options={{ drawerIcon: () => <Bell size={20} color="#000" /> }}
             >
@@ -472,9 +472,9 @@ export default function AppNavigator({
                   onLogout={onLogout}
                 />
               )}
-            </Drawer.Screen>
+            </Drawer.Screen> */}
 
-            <Drawer.Screen
+            {/* <Drawer.Screen
               name="Settings"
               options={{
                 drawerIcon: () => <Settings size={20} color="#000" />,
@@ -488,9 +488,9 @@ export default function AppNavigator({
                   onLogout={onLogout}
                 />
               )}
-            </Drawer.Screen>
+            </Drawer.Screen> */}
 
-            <Drawer.Screen
+            {/* <Drawer.Screen
               name="Theme"
               options={{ drawerIcon: () => <Palette size={20} color="#000" /> }}
             >
@@ -511,7 +511,7 @@ export default function AppNavigator({
               }}
             >
               {(props) => <RedirectApprovals {...props} />}
-            </Drawer.Screen>
+            </Drawer.Screen> */}
           </Drawer.Navigator>
         )}
       </RootStack.Screen>

@@ -24,6 +24,7 @@ import {
   CalendarCheck,
 } from "lucide-react-native";
 import { format, parseISO } from "date-fns";
+import { useFocusEffect } from "@react-navigation/native";
 import DoctypeFormModal from "../Components/DoctypeFormModal";
 
 const formatDate = (dateString) => {
@@ -145,9 +146,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
     [currentEmployeeId],
   );
 
-  useEffect(() => {
-    fetchRecentAttendance();
-  }, [fetchRecentAttendance]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchRecentAttendance();
+    }, [fetchRecentAttendance]),
+  );
 
   const fetchHolidays = useCallback(async () => {
     if (!currentEmployeeId) return;

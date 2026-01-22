@@ -161,9 +161,11 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
     [effectiveEmployeeId, statusFilter],
   );
 
-  useEffect(() => {
-    fetchClaims();
-  }, [fetchClaims]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchClaims();
+    }, [fetchClaims]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -354,6 +356,12 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
           "payable_account",
           "clearance_date",
           "total_amount_reimbursed",
+          "custom_reference_doctype",
+          "cost_center",
+          "project",
+          "status",
+          "grand_total",
+          "remark",
         ]}
       />
     </View>

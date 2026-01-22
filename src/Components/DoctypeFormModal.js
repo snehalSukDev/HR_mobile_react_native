@@ -285,7 +285,7 @@ const DoctypeFormModal = ({
           ) : (
             <Formik
               initialValues={initialValues}
-              enableReinitialize={false}
+              enableReinitialize={true}
               onSubmit={async (values, { setSubmitting }) => {
                 const missing = [];
                 fields.forEach((f) => {
@@ -322,7 +322,7 @@ const DoctypeFormModal = ({
                 const tempName = `new-${doctype
                   .toLowerCase()
                   .replace(/ /g, "-")}-${Date.now()}`;
-                console.log("onSubmit", values);
+
                 try {
                   const doc = {
                     ...values,
@@ -339,9 +339,11 @@ const DoctypeFormModal = ({
                   };
 
                   const saved = await saveDoc(doc);
+                  if (!isMountedRef.current) return;
 
                   if (doctype === "Attendance Request") {
                     await submitSavedDoc(saved, doc);
+                    if (!isMountedRef.current) return;
                   }
 
                   Alert.alert(

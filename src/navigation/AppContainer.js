@@ -40,14 +40,12 @@ const AppContainer = () => {
         }
         const user = await getCurrentUser();
 
-        console.log("Current user:", user);
         if (user && user.email && user.email !== "Guest") {
           if (isMountedRef.current) {
             setCurrentUserEmail(user.email);
           }
           // ✅ FETCH EMPLOYEE DETAILS BY EMAIL
           const emp = await fetchEmployeeDetails(user.email, true);
-          console.log("Fetched employee from email:", emp);
 
           if (emp && emp.name) {
             if (isMountedRef.current) {
@@ -100,7 +98,7 @@ const AppContainer = () => {
     // Re-fetch user details after successful login
     try {
       const user = await getCurrentUser();
-      console.log("Login success, user:", user);
+
       if (user && user.email) {
         if (isMountedRef.current) {
           setCurrentUserEmail(user.email);

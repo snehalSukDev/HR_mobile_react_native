@@ -37,8 +37,16 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const [holidayTypeFilter, setHolidayTypeFilter] = useState("All");
   const { width } = useWindowDimensions();
   const isSmall = width < 400;
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchHolidays = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setLoading(true);
     setError(null);
     try {
@@ -54,8 +62,11 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
         order_by: "name asc",
       });
 
+      if (!isMountedRef.current) return;
+
       let result = [];
       for (const list of listNames) {
+        if (!isMountedRef.current) return;
         const doc = await getResource("Holiday List", list.name);
         if (doc?.holidays?.length) {
           doc.holidays.forEach((item) => {
@@ -70,18 +81,26 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
           });
         }
       }
-      setHolidays(result);
+      if (isMountedRef.current) {
+        setHolidays(result);
+      }
     } catch (err) {
       console.error(err);
-      setError("Failed to load holidays.");
+      if (isMountedRef.current) {
+        setError("Failed to load holidays.");
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [currentYear]);
 
-  useEffect(() => {
-    fetchHolidays();
-  }, [fetchHolidays]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchHolidays();
+    }, [fetchHolidays]),
+  );
 
   const handleYearChange = (delta) => setCurrentYear((y) => y + delta);
 

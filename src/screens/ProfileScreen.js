@@ -133,7 +133,7 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
       </View>
     );
   }
-  console.log("employeeProfile", employeeProfile);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.profileCard}>

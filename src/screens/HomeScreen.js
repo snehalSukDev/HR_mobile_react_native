@@ -25,6 +25,7 @@ import {
   callFrappeMethod,
   getGeolocation,
 } from "../utils/frappeApi";
+import { useFocusEffect } from "@react-navigation/native";
 import { format, parseISO } from "date-fns";
 import {
   Megaphone,
@@ -71,6 +72,8 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   const [coords, setCoords] = useState(null);
   // const [mapError, setMapError] = useState(false);
   // const [mapEnabled, setMapEnabled] = useState(false);
+
+  const [allowMobileCheckin, setAllowMobileCheckin] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -258,15 +261,11 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
       fields: JSON.stringify(["log_type", "time"]),
       order_by: "time asc",
     });
-    console.log("Checkins:", data);
+
     if (isMountedRef.current) {
       setCheckins(data || []);
     }
   }, []);
-
-  useEffect(() => {
-    fetchCheckins();
-  }, [fetchCheckins]);
 
   useEffect(() => {
     if (checkins && checkins.length > 0) {
@@ -295,7 +294,8 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
 
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    fetchHRSettings();
+  }, [fetchProfile, fetchHRSettings]);
   useEffect(() => {
     (async () => {
       try {
@@ -314,6 +314,23 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
         // ignore location failures
       }
     })();
+  }, []);
+
+  const fetchHRSettings = useCallback(async () => {
+    try {
+      const settings = await callFrappeMethod("hrms.api.get_hr_settings");
+
+      if (isMountedRef.current && settings) {
+        setAllowMobileCheckin(
+          !!settings.allow_employee_checkin_from_mobile_app,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "Failed to call hrms.api.get_hr_settings, falling back to getResource:",
+        err,
+      );
+    }
   }, []);
 
   if (loading) {
@@ -423,76 +440,97 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
             </View>
           </View>
 
-          <View
-            style={[
-              styles.slideTrack,
-              effectivePunchedIn
-                ? {
-                    backgroundColor: "#ffecec", // light red bg (Punch Out)
-                    borderColor: "#EA4335", // red border
-                  }
-                : {
-                    backgroundColor: "#e8fff0", // light green bg (Punch In)
-                    borderColor: "#34A853", // green border
-                  },
-            ]}
-            onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-          >
-            {isPunching ? (
-              <View style={styles.slideCenter}>
-                <ActivityIndicator
-                  size="small"
-                  color={effectivePunchedIn ? "#EA4335" : "#34A853"}
-                />
+          {allowMobileCheckin ? (
+            <View
+              style={[
+                styles.slideTrack,
+                effectivePunchedIn
+                  ? {
+                      backgroundColor: "#ffecec", // light red bg (Punch Out)
+                      borderColor: "#EA4335", // red border
+                    }
+                  : {
+                      backgroundColor: "#e8fff0", // light green bg (Punch In)
+                      borderColor: "#34A853", // green border
+                    },
+              ]}
+              onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+            >
+              {isPunching ? (
+                <View style={styles.slideCenter}>
+                  <ActivityIndicator
+                    size="small"
+                    color={effectivePunchedIn ? "#EA4335" : "#34A853"}
+                  />
+                  <Text
+                    style={[
+                      styles.slideLoadingText,
+                      { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
+                    ]}
+                  >
+                    {pendingLogType === "OUT"
+                      ? "Punching Out..."
+                      : "Punching In..."}
+                  </Text>
+                </View>
+              ) : (
                 <Text
                   style={[
-                    styles.slideLoadingText,
+                    styles.slideText,
                     { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
                   ]}
                 >
-                  {pendingLogType === "OUT"
-                    ? "Punching Out..."
-                    : "Punching In..."}
+                  {effectivePunchedIn
+                    ? "Slide back to Punch Out"
+                    : "Slide to Punch In"}
                 </Text>
-              </View>
-            ) : (
-              <Text
-                style={[
-                  styles.slideText,
-                  { color: effectivePunchedIn ? "#EA4335" : "#34A853" },
-                ]}
-              >
-                {effectivePunchedIn
-                  ? "Slide back to Punch Out"
-                  : "Slide to Punch In"}
-              </Text>
-            )}
+              )}
 
-            <Animated.View
-              style={[
-                styles.slideKnob,
-                {
-                  width: knobSize,
-                  height: knobSize,
-                  transform: [{ translateX: sliderPos }],
-                  backgroundColor: effectivePunchedIn ? "#EA4335" : "#34A853",
-                  opacity: isPunching ? 0.7 : 1,
-                },
-              ]}
-              {...panResponder.panHandlers}
+              <Animated.View
+                style={[
+                  styles.slideKnob,
+                  {
+                    width: knobSize,
+                    height: knobSize,
+                    transform: [{ translateX: sliderPos }],
+                    backgroundColor: effectivePunchedIn ? "#EA4335" : "#34A853",
+                    opacity: isPunching ? 0.7 : 1,
+                  },
+                ]}
+                {...panResponder.panHandlers}
+              >
+                <MaterialIcons
+                  name={effectivePunchedIn ? "logout" : "login"}
+                  size={22}
+                  color="#fff"
+                  style={{
+                    transform: effectivePunchedIn
+                      ? [{ scaleX: -1 }] // 🔁 mirror ONLY for Punch Out
+                      : [{ scaleX: 1 }], // ➡️ normal for Punch In
+                  }}
+                />
+              </Animated.View>
+            </View>
+          ) : (
+            <View
+              style={{
+                height: 52,
+                borderRadius: 26,
+                borderWidth: 1,
+                borderColor: "#EA4335",
+                backgroundColor: "#ffecec",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
             >
-              <MaterialIcons
-                name={effectivePunchedIn ? "logout" : "login"}
-                size={22}
-                color="#fff"
-                style={{
-                  transform: effectivePunchedIn
-                    ? [{ scaleX: -1 }] // 🔁 mirror ONLY for Punch Out
-                    : [{ scaleX: 1 }], // ➡️ normal for Punch In
-                }}
-              />
-            </Animated.View>
-          </View>
+              <Text
+                style={{ color: "#EA4335", fontSize: 16, fontWeight: "600" }}
+              >
+                Not allowed to checkin from here
+              </Text>
+            </View>
+          )}
 
           <View style={styles.quickDividerRow}>
             <View style={styles.dividerLine} />

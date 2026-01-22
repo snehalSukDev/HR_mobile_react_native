@@ -15,6 +15,7 @@ import { getResource, getResourceList } from "../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
 import DoctypeFormModal from "../Components/DoctypeFormModal";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Calendar as CalendarIcon,
   List as ListIcon,
@@ -80,7 +81,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       if (!currentEmployeeId) {
         if (isMountedRef.current) {
           setError(
-            "Employee ID not available. Please ensure your profile is complete."
+            "Employee ID not available. Please ensure your profile is complete.",
           );
           if (isRefresh) {
             setRefreshing(false);
@@ -107,7 +108,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         if (holidayListName) {
           const holidayListDoc = await getResource(
             "Holiday List",
-            holidayListName
+            holidayListName,
           );
           if (Array.isArray(holidayListDoc?.holidays)) {
             holidaysList = holidayListDoc.holidays.map((h) => ({
@@ -117,7 +118,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           } else {
             console.warn(
               "Holiday List 'holidays' is not an array or is empty:",
-              holidayListDoc?.holidays
+              holidayListDoc?.holidays,
             );
           }
         }
@@ -193,7 +194,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         if (isMountedRef.current) {
           Alert.alert(
             "Error",
-            "Failed to load leave data. Please check your internet connection or try again later."
+            "Failed to load leave data. Please check your internet connection or try again later.",
           );
           setError("Failed to fetch leave data.");
         }
@@ -207,12 +208,14 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         }
       }
     },
-    [currentEmployeeId]
+    [currentEmployeeId],
   );
 
-  useEffect(() => {
-    fetchLeaveData();
-  }, [fetchLeaveData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchLeaveData();
+    }, [fetchLeaveData]),
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -519,11 +522,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         }}
         doctype={doctype}
         title="Leave Application"
-        hiddenFields={[
-          "leave_balance",
-          "salary_slip",
-          "letter_head",
-        ]}
+        hiddenFields={["leave_balance", "salary_slip", "letter_head"]}
       />
     </View>
   );

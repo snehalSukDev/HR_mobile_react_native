@@ -92,7 +92,7 @@ const DoctypeExpenseModal = ({
 
         const res = await getMetaData(doctype);
         if (!isMountedRef.current) return;
-        console.log("meta", res);
+
         const rawFields = res && Array.isArray(res.fields) ? res.fields : [];
         const filtered = rawFields.filter(
           (f) =>
@@ -235,7 +235,7 @@ const DoctypeExpenseModal = ({
           ) : (
             <Formik
               initialValues={initialValues}
-              enableReinitialize={false}
+              enableReinitialize={true}
               onSubmit={async (values, { setSubmitting }) => {
                 const missing = [];
                 fields.forEach((f) => {
@@ -272,7 +272,7 @@ const DoctypeExpenseModal = ({
                 const tempName = `new-${doctype
                   .toLowerCase()
                   .replace(/ /g, "-")}-${Date.now()}`;
-                console.log("onSubmit", values);
+
                 try {
                   const docValues = { ...values };
                   childTables.forEach((tbl) => {
@@ -308,7 +308,7 @@ const DoctypeExpenseModal = ({
                   };
 
                   const saved = await saveDoc(doc);
-                  
+
                   if (!isMountedRef.current) return;
 
                   if (doctype === "Attendance Request") {

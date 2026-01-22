@@ -34,6 +34,14 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // ✅ Animation ref (ONLY for background)
   const scaleAnim = useRef(new Animated.Value(1)).current;
 

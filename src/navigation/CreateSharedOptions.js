@@ -94,7 +94,7 @@ function NotificationBell({ onLogout, currentUserEmail }) {
 
   const generalNotifications = useMemo(
     () => (notify || []).filter((item) => item?.document_type !== "Event"),
-    [notify]
+    [notify],
   );
 
   const hasUnread = useMemo(() => {
@@ -129,10 +129,10 @@ function NotificationBell({ onLogout, currentUserEmail }) {
       }
       try {
         const message = await callFrappeMethod(
-          "frappe.desk.doctype.notification_log.notification_log.get_notification_logs"
+          "frappe.desk.doctype.notification_log.notification_log.get_notification_logs",
         );
         setNotify(message?.notification_logs || []);
-        console.log("Notification API response:", message);
+
         setUserInfo(message?.user_info || null);
       } catch (e) {
         if (showLoader) {
@@ -145,7 +145,7 @@ function NotificationBell({ onLogout, currentUserEmail }) {
         }
       }
     },
-    []
+    [],
   );
 
   const open = useCallback(async () => {

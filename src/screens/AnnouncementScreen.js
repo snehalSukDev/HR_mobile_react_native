@@ -10,6 +10,7 @@ import {
   Button,
   TextInput,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
 import { Megaphone, List as ListIcon } from "lucide-react-native";
@@ -114,7 +115,6 @@ const AnnouncementScreen = () => {
           limit: 10,
           as_dict: true,
         });
-        console.log("Annocement", data);
 
         if (isMountedRef.current) {
           setItems(Array.isArray(data) ? data : []);
@@ -133,9 +133,11 @@ const AnnouncementScreen = () => {
     [statusFilter, searchTerm],
   );
 
-  useEffect(() => {
-    fetchAnnouncements();
-  }, [fetchAnnouncements]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchAnnouncements();
+    }, [fetchAnnouncements]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

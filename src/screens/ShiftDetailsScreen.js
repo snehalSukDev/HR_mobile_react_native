@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -10,6 +16,7 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { getResourceList, getResource } from "../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
@@ -76,7 +83,7 @@ const ShiftDetailsScreen = ({
       if (!currentUserEmail) {
         if (isMountedRef.current) {
           setError(
-            "User email not provided. Please ensure your profile is complete."
+            "User email not provided. Please ensure your profile is complete.",
           );
           if (isRefresh) {
             setRefreshing(false);
@@ -116,7 +123,7 @@ const ShiftDetailsScreen = ({
         if (!empId) {
           if (isMountedRef.current) {
             setError(
-              "Employee ID not found. Please contact your administrator."
+              "Employee ID not found. Please contact your administrator.",
             );
             if (isRefresh) {
               setRefreshing(false);
@@ -130,14 +137,14 @@ const ShiftDetailsScreen = ({
         const startDate = new Date(
           currentMonth.getFullYear(),
           currentMonth.getMonth(),
-          1
+          1,
         )
           .toISOString()
           .split("T")[0];
         const endDate = new Date(
           currentMonth.getFullYear(),
           currentMonth.getMonth() + 1,
-          0
+          0,
         )
           .toISOString()
           .split("T")[0];
@@ -171,10 +178,10 @@ const ShiftDetailsScreen = ({
           const from = new Date(assign.start_date);
           const to = assign.end_date ? new Date(assign.end_date) : from;
           const loopStart = new Date(
-            Math.max(from.getTime(), new Date(startDate).getTime())
+            Math.max(from.getTime(), new Date(startDate).getTime()),
           );
           const loopEnd = new Date(
-            Math.min(to.getTime(), new Date(endDate).getTime())
+            Math.min(to.getTime(), new Date(endDate).getTime()),
           );
 
           for (
@@ -194,7 +201,7 @@ const ShiftDetailsScreen = ({
         }
 
         dailyRoster.sort(
-          (a, b) => new Date(a.shift_date) - new Date(b.shift_date)
+          (a, b) => new Date(a.shift_date) - new Date(b.shift_date),
         );
         if (isMountedRef.current) {
           setShiftData(dailyRoster);
@@ -204,7 +211,7 @@ const ShiftDetailsScreen = ({
         if (isMountedRef.current) {
           Alert.alert(
             "Error",
-            "Failed to load shift data. Please check your internet connection or try again later."
+            "Failed to load shift data. Please check your internet connection or try again later.",
           );
           setError("Failed to fetch shift data.");
         }
@@ -218,12 +225,14 @@ const ShiftDetailsScreen = ({
         }
       }
     },
-    [currentUserEmail, currentMonth]
+    [currentUserEmail, currentMonth],
   );
 
-  useEffect(() => {
-    fetchShiftData();
-  }, [fetchShiftData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchShiftData();
+    }, [fetchShiftData]),
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -232,7 +241,7 @@ const ShiftDetailsScreen = ({
 
   const handleMonthChange = (offset) => {
     setCurrentMonth(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1)
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1),
     );
   };
 
@@ -251,9 +260,6 @@ const ShiftDetailsScreen = ({
   );
 
   const renderItem = ({ item }) => {
-    console.log("====================================");
-    console.log("item", item);
-    console.log("====================================");
     const date = new Date(item.shift_date);
     const isWeekend = [0, 6].includes(date.getDay());
 

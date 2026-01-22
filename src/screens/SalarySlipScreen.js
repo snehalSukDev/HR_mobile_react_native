@@ -12,6 +12,7 @@ import {
   Linking,
   Platform,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { WebView } from "react-native-webview";
 import {
   getResourceList,
@@ -116,9 +117,11 @@ const SalarySlipScreen = ({
     [currentEmployeeId],
   );
 
-  useEffect(() => {
-    fetchSalarySlips();
-  }, [fetchSalarySlips]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchSalarySlips();
+    }, [fetchSalarySlips]),
+  );
 
   const onRefresh = () => {
     if (!isMountedRef.current) return;
@@ -141,7 +144,6 @@ const SalarySlipScreen = ({
       if (isMountedRef.current) {
         setDocinfo(info || {});
       }
-      console.log("Salary Slip Docinfo:", info);
     } catch (e) {
       if (isMountedRef.current) {
         setDocinfo(null);
