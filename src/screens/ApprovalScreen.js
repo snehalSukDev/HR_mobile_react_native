@@ -1,12 +1,16 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   TouchableOpacity,
-  Alert,
   Button,
   TextInput,
   Modal,
@@ -16,6 +20,9 @@ import { getResourceList, saveDoc } from "../utils/frappeApi";
 import { Wallet, Plus, List as ListIcon } from "lucide-react-native";
 import { format, parseISO } from "date-fns";
 import DoctypeExpenseModal from "../Components/DoctypeExpenseModal";
+import { useTheme } from "../context/ThemeContext";
+import Toast from "react-native-toast-message";
+import CustomLoader from "../Components/CustomLoader";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -26,18 +33,98 @@ const formatDate = (dateString) => {
   }
 };
 
-const statusToColorMap = {
-  Draft: { bg: "#e0f2f1", text: "#00695c" },
-  Submitted: { bg: "#fff3e0", text: "#ef6c00" },
-  Cancelled: { bg: "#ffebee", text: "#c62828" },
-  Paid: { bg: "#e8f5e9", text: "#2e7d32" },
-  Approved: { bg: "#e8f5e9", text: "#2e7d32" },
-  Rejected: { bg: "#ffebee", text: "#c62828" },
-  Unpaid: { bg: "#ffebee", text: "#c62828" },
-  Pending: { bg: "#fff3e0", text: "#ef6c00" },
-};
-
 const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
+  const { colors, theme } = useTheme();
+
+  const getStatusColors = (status) => {
+    const isDark = theme === "dark";
+    const map = {
+      Draft: {
+        bg: isDark ? "#1a3d3d" : "#e0f2f1",
+        text: isDark ? "#80cbc4" : "#00695c",
+      },
+      Submitted: {
+        bg: isDark ? "#3d291a" : "#fff3e0",
+        text: isDark ? "#ffcc80" : "#ef6c00",
+      },
+      Cancelled: {
+        bg: isDark ? "#3d1a1a" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Paid: {
+        bg: isDark ? "#1b3d1b" : "#e8f5e9",
+        text: isDark ? "#a5d6a7" : "#2e7d32",
+      },
+      Approved: {
+        bg: isDark ? "#1b3d1b" : "#e8f5e9",
+        text: isDark ? "#a5d6a7" : "#2e7d32",
+      },
+      Rejected: {
+        bg: isDark ? "#3d1a1a" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Unpaid: {
+        bg: isDark ? "#3d1a1a" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Pending: {
+        bg: isDark ? "#3d291a" : "#fff3e0",
+        text: isDark ? "#ffcc80" : "#ef6c00",
+      },
+      Open: {
+        bg: isDark ? "#3d291a" : "#fff3e0",
+        text: isDark ? "#ffcc80" : "#ef6c00",
+      },
+    };
+    return map[status] || { bg: colors.card, text: colors.text };
+  };
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      centered: { backgroundColor: colors.background },
+      text: { color: colors.text },
+      textSecondary: { color: colors.textSecondary },
+      card: { backgroundColor: colors.card, borderColor: colors.border },
+      headerContainer: { backgroundColor: colors.background },
+      tabButtonText: { color: colors.textSecondary },
+      filterContainer: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      filterLabel: { color: colors.textSecondary },
+      selectedBadge: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      selectedBadgeText: { color: colors.text },
+      segmentItem: { backgroundColor: theme === "dark" ? "#333" : "#f0f0f0" },
+      segmentText: { color: colors.textSecondary },
+      searchInput: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        color: colors.text,
+      },
+      listHeaderBar: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      listHeaderTitle: { color: colors.text },
+      loadingText: { color: colors.textSecondary },
+      emptyText: { color: colors.textSecondary },
+      modalBackdrop: { backgroundColor: "rgba(0,0,0,0.5)" },
+      modalCard: { backgroundColor: colors.card },
+      modalHeader: { borderBottomColor: colors.border },
+      modalTitle: { color: colors.text },
+      modalBody: { backgroundColor: colors.card },
+      modalFooter: { borderTopColor: colors.border },
+      infoRow: { borderBottomColor: colors.border },
+      label: { color: colors.textSecondary },
+      value: { color: colors.text },
+      viewToggles: { backgroundColor: colors.card, borderColor: colors.border },
+      searchRow: { backgroundColor: colors.card, borderColor: colors.border },
+      iconContainer: {
+        backgroundColor: theme === "dark" ? "#333" : "#f0f0f0",
+        borderColor: colors.border,
+      },
+    }),
+    [colors, theme],
+  );
+
   const [myClaims, setMyClaims] = useState([]);
   const [claimsToApprove, setClaimsToApprove] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -140,6 +227,11 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         setClaimsToApprove(Array.isArray(approvalData) ? approvalData : []);
       } catch (err) {
         setError("Failed to load expense claims.");
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to load expense claims.",
+        });
       } finally {
         if (isMountedRef.current) {
           setLoading(false);
@@ -208,6 +300,11 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         setLeaveList(Array.isArray(data) ? data : []);
       } catch (err) {
         setError("Failed to load leave applications.");
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to load leave applications.",
+        });
       } finally {
         if (isMountedRef.current) {
           setLoading(false);
@@ -224,21 +321,23 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
   };
 
   const handleItemPress = (item) => {
-    Alert.alert(
-      "Claim Details",
-      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`,
-    );
+    Toast.show({
+      type: "info",
+      text1: "Claim Details",
+      text2: `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`,
+      visibilityTime: 4000,
+    });
   };
 
   const renderItem = React.useCallback(
     ({ item }) => {
-      const status = item.approval_status || "Draft";
-      const statusColor = statusToColorMap[status]?.bg || "#f0f2f5";
-      const statusTextColor = statusToColorMap[status]?.text || "#333";
+      const status = item.approval_status || item.status || "Draft";
+      const { bg: statusColor, text: statusTextColor } =
+        getStatusColors(status);
 
       return (
         <TouchableOpacity
-          style={styles.card}
+          style={[styles.card, dynamicStyles.card]}
           onPress={() => {
             if (docTypeTab === "expense" && activeTab === "approvals") {
               setSelectedExpense(item);
@@ -253,13 +352,13 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
               <Wallet size={20} color="#555" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.employeeName}>
+              <Text style={[styles.employeeName, dynamicStyles.text]}>
                 {activeTab === "approvals" ? item.employee_name : item.name}
               </Text>
-              <Text style={styles.dateText}>
+              <Text style={[styles.dateText, dynamicStyles.textSecondary]}>
                 {formatDate(item.posting_date)}
               </Text>
-              <Text style={styles.amountText}>
+              <Text style={[styles.amountText, dynamicStyles.text]}>
                 ₹ {parseFloat(item.total_claimed_amount || 0).toFixed(2)}
               </Text>
             </View>
@@ -274,7 +373,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         </TouchableOpacity>
       );
     },
-    [activeTab, docTypeTab],
+    [activeTab, docTypeTab, dynamicStyles],
   );
 
   const handleExpenseStatusChange = async (nextStatus) => {
@@ -290,20 +389,55 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       setShowExpenseModal(false);
       setSelectedExpense(null);
       await fetchClaims();
+      Toast.show({
+        type: "success",
+        text1: "Success",
+        text2: `Expense ${nextStatus}`,
+      });
     } catch (err) {
-      Alert.alert(
-        "Update Failed",
-        "Could not update expense status. Please try again.",
-      );
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Could not update expense status.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLeaveStatusChange = async (nextStatus) => {
+    if (!selectedLeave) return;
+    try {
+      setLoading(true);
+      const doc = {
+        doctype: "Leave Application",
+        name: selectedLeave.name,
+        status: nextStatus,
+      };
+      await saveDoc(doc);
+      setShowLeaveModal(false);
+      setSelectedLeave(null);
+      await fetchLeaves();
+      Toast.show({
+        type: "success",
+        text1: "Success",
+        text2: `Leave ${nextStatus}`,
+      });
+    } catch (err) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Could not update leave status.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
+    <View style={[styles.headerContainer, dynamicStyles.headerContainer]}>
       <View style={styles.toolbar}>
-        <View style={styles.viewToggles}>
+        <View style={[styles.viewToggles, dynamicStyles.viewToggles]}>
           <TouchableOpacity
             style={[
               styles.tabButton,
@@ -314,6 +448,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
             <Text
               style={[
                 styles.tabButtonText,
+                dynamicStyles.tabButtonText,
                 docTypeTab === "expense" && styles.activeTabButtonText,
               ]}
             >
@@ -330,6 +465,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
             <Text
               style={[
                 styles.tabButtonText,
+                dynamicStyles.tabButtonText,
                 docTypeTab === "leave" && styles.activeTabButtonText,
               ]}
             >
@@ -340,10 +476,19 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       </View>
 
       {activeTab === "my_claims" && (
-        <View style={styles.filterContainer}>
-          <Text style={styles.filterLabel}>Filter:</Text>
-          <View style={styles.selectedBadge}>
-            <Text style={styles.selectedBadgeText}>{statusFilter}</Text>
+        <View style={[styles.filterContainer, dynamicStyles.filterContainer]}>
+          <Text style={[styles.filterLabel, dynamicStyles.filterLabel]}>
+            Filter:
+          </Text>
+          <View style={[styles.selectedBadge, dynamicStyles.selectedBadge]}>
+            <Text
+              style={[
+                styles.selectedBadgeText,
+                dynamicStyles.selectedBadgeText,
+              ]}
+            >
+              {statusFilter}
+            </Text>
           </View>
           <View style={styles.segmentRow}>
             {["All", "Draft", "Submitted"].map((opt) => (
@@ -351,6 +496,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                 key={`seg-my-${opt}`}
                 style={[
                   styles.segmentItem,
+                  dynamicStyles.segmentItem,
                   statusFilter === opt && styles.segmentItemActive,
                 ]}
                 onPress={() => setStatusFilter(opt)}
@@ -358,6 +504,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                 <Text
                   style={[
                     styles.segmentText,
+                    dynamicStyles.segmentText,
                     statusFilter === opt && styles.segmentTextActive,
                   ]}
                 >
@@ -370,10 +517,19 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       )}
 
       {docTypeTab === "expense" && activeTab === "approvals" && (
-        <View style={styles.filterContainer}>
-          <Text style={styles.filterLabel}>Filter:</Text>
-          <View style={styles.selectedBadge}>
-            <Text style={styles.selectedBadgeText}>{expenseStatus}</Text>
+        <View style={[styles.filterContainer, dynamicStyles.filterContainer]}>
+          <Text style={[styles.filterLabel, dynamicStyles.filterLabel]}>
+            Filter:
+          </Text>
+          <View style={[styles.selectedBadge, dynamicStyles.selectedBadge]}>
+            <Text
+              style={[
+                styles.selectedBadgeText,
+                dynamicStyles.selectedBadgeText,
+              ]}
+            >
+              {expenseStatus}
+            </Text>
           </View>
           <View style={styles.segmentRow}>
             {["All", "Pending", "Approved", "Rejected"].map((opt) => (
@@ -381,6 +537,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                 key={`seg-exp-${opt}`}
                 style={[
                   styles.segmentItem,
+                  dynamicStyles.segmentItem,
                   expenseStatus === opt && styles.segmentItemActive,
                 ]}
                 onPress={() => setExpenseStatus(opt)}
@@ -388,6 +545,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                 <Text
                   style={[
                     styles.segmentText,
+                    dynamicStyles.segmentText,
                     expenseStatus === opt && styles.segmentTextActive,
                   ]}
                 >
@@ -400,10 +558,19 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       )}
 
       {docTypeTab === "leave" && (
-        <View style={styles.filterContainer}>
-          <Text style={styles.filterLabel}>Filter:</Text>
-          <View style={styles.selectedBadge}>
-            <Text style={styles.selectedBadgeText}>{leaveStatus}</Text>
+        <View style={[styles.filterContainer, dynamicStyles.filterContainer]}>
+          <Text style={[styles.filterLabel, dynamicStyles.filterLabel]}>
+            Filter:
+          </Text>
+          <View style={[styles.selectedBadge, dynamicStyles.selectedBadge]}>
+            <Text
+              style={[
+                styles.selectedBadgeText,
+                dynamicStyles.selectedBadgeText,
+              ]}
+            >
+              {leaveStatus}
+            </Text>
           </View>
           <View style={styles.segmentRow}>
             {[
@@ -416,6 +583,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                 key={`seg-leave-${opt.value}`}
                 style={[
                   styles.segmentItem,
+                  dynamicStyles.segmentItem,
                   leaveStatus === opt.value && styles.segmentItemActive,
                 ]}
                 onPress={() => setLeaveStatus(opt.value)}
@@ -423,6 +591,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                 <Text
                   style={[
                     styles.segmentText,
+                    dynamicStyles.segmentText,
                     leaveStatus === opt.value && styles.segmentTextActive,
                   ]}
                 >
@@ -435,32 +604,32 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       )}
 
       {docTypeTab === "leave" && (
-        <View style={styles.searchRow}>
+        <View style={[styles.searchRow, dynamicStyles.searchRow]}>
           <TextInput
             placeholder="Search Employee..."
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.textSecondary}
             value={leaveSearch}
             onChangeText={setLeaveSearch}
-            style={styles.searchInput}
+            style={[styles.searchInput, dynamicStyles.searchInput]}
           />
         </View>
       )}
       {docTypeTab === "expense" && activeTab === "approvals" && (
-        <View style={styles.searchRow}>
+        <View style={[styles.searchRow, dynamicStyles.searchRow]}>
           <TextInput
             placeholder="Search Employee..."
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.textSecondary}
             value={expenseSearch}
             onChangeText={setExpenseSearch}
-            style={styles.searchInput}
+            style={[styles.searchInput, dynamicStyles.searchInput]}
           />
         </View>
       )}
 
-      <View style={styles.listHeaderBar}>
+      <View style={[styles.listHeaderBar, dynamicStyles.listHeaderBar]}>
         <View style={styles.listHeaderLeft}>
-          <ListIcon size={18} color="orange" />
-          <Text style={styles.listHeaderTitle}>
+          <ListIcon size={18} color={colors.primary || "orange"} />
+          <Text style={[styles.listHeaderTitle, dynamicStyles.listHeaderTitle]}>
             {docTypeTab === "leave"
               ? "Leave Approvals"
               : activeTab === "my_claims"
@@ -489,25 +658,24 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         : claimsToApprove;
 
   if (loading && !refreshing) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading expense claims...</Text>
-      </View>
-    );
+    return <CustomLoader visible={loading && !refreshing} />;
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button title="Retry" onPress={() => fetchClaims()} color="#007bff" />
+      <View style={[styles.centered, dynamicStyles.centered]}>
+        <Text style={[styles.errorText, dynamicStyles.text]}>{error}</Text>
+        <Button
+          title="Retry"
+          onPress={() => fetchClaims()}
+          color={colors.primary || "#007bff"}
+        />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       {docTypeTab === "leave" ? (
         <FlatList
           data={Array.isArray(leaveList) ? leaveList : []}
@@ -526,7 +694,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                   ? "#ffebee"
                   : s === "Pending"
                     ? "#fff3e0"
-                    : "#f0f2f5";
+                    : "#f0f0f5";
             const statusTextColor =
               s === "Approved"
                 ? "#2e7d32"
@@ -537,24 +705,28 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
                     : "#333";
             return (
               <TouchableOpacity
-                style={styles.card}
+                style={[styles.card, dynamicStyles.card]}
                 onPress={() => {
                   setSelectedLeave(item);
                   setShowLeaveModal(true);
                 }}
               >
                 <View style={styles.cardRow}>
-                  <View style={styles.iconContainer}>
-                    <Wallet size={20} color="#555" />
+                  <View
+                    style={[styles.iconContainer, dynamicStyles.iconContainer]}
+                  >
+                    <Wallet size={20} color={colors.textSecondary || "#555"} />
                   </View>
                   <View style={styles.cardContent}>
-                    <Text style={styles.employeeName}>
+                    <Text style={[styles.employeeName, dynamicStyles.text]}>
                       {item.employee_name}
                     </Text>
-                    <Text style={styles.dateText}>
+                    <Text
+                      style={[styles.dateText, dynamicStyles.textSecondary]}
+                    >
                       {formatDate(item.from_date)} - {formatDate(item.to_date)}
                     </Text>
-                    <Text style={styles.amountText}>
+                    <Text style={[styles.amountText, dynamicStyles.text]}>
                       {String(item.total_leave_days || 0)} days •{" "}
                       {item.leave_type}
                     </Text>
@@ -584,8 +756,10 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
             fetchLeaves(true);
           }}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No leave applications found.</Text>
+            <View style={[styles.emptyContainer, dynamicStyles.emptyContainer]}>
+              <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
+                No leave applications found.
+              </Text>
             </View>
           }
         />
@@ -614,7 +788,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
           }}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
                 {activeTab === "my_claims"
                   ? "No expense claims found."
                   : "No pending approvals."}
@@ -629,67 +803,74 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         animationType="slide"
         onRequestClose={() => setShowExpenseModal(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Expense Claim</Text>
+        <View style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}>
+          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                Expense Details
+              </Text>
               <TouchableOpacity onPress={() => setShowExpenseModal(false)}>
-                <Plus size={18} color="#333" />
+                <Plus
+                  size={24}
+                  color={colors.text}
+                  style={{ transform: [{ rotate: "45deg" }] }}
+                />
               </TouchableOpacity>
             </View>
-            {selectedExpense ? (
-              <View style={styles.modalBody}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>ID</Text>
-                  <Text style={styles.detailValue}>{selectedExpense.name}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Employee</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedExpense.employee_name}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Date</Text>
-                  <Text style={styles.detailValue}>
-                    {formatDate(selectedExpense.posting_date)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Amount</Text>
-                  <Text style={styles.detailValue}>
-                    ₹{" "}
-                    {parseFloat(
-                      selectedExpense.total_claimed_amount || 0,
-                    ).toFixed(2)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Status</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedExpense.approval_status || "Pending"}
-                  </Text>
-                </View>
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.approveButton]}
-                    onPress={() => handleExpenseStatusChange("Approved")}
-                  >
-                    <Text style={styles.actionButtonText}>Approve</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.rejectButton]}
-                    onPress={() => handleExpenseStatusChange("Rejected")}
-                  >
-                    <Text style={styles.actionButtonText}>Reject</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.modalBody}>
-                <ActivityIndicator size="small" color="#271085" />
-              </View>
-            )}
+
+            <View style={[styles.modalBody, dynamicStyles.modalBody]}>
+              {selectedExpense && (
+                <>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Employee:
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {selectedExpense.employee_name}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Amount:
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      ₹ {selectedExpense.total_claimed_amount}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Date:
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {formatDate(selectedExpense.posting_date)}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Current Status:
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {selectedExpense.approval_status}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            <View style={[styles.modalFooter, dynamicStyles.modalFooter]}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.rejectButton]}
+                onPress={() => handleExpenseStatusChange("Rejected")}
+              >
+                <Text style={styles.actionButtonText}>Reject</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.approveButton]}
+                onPress={() => handleExpenseStatusChange("Approved")}
+              >
+                <Text style={styles.actionButtonText}>Approve</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -699,64 +880,94 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         animationType="slide"
         onRequestClose={() => setShowLeaveModal(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Leave Application</Text>
+        <View style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}>
+          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                Leave Application
+              </Text>
               <TouchableOpacity onPress={() => setShowLeaveModal(false)}>
-                <Plus size={18} color="#333" />
+                <Plus
+                  size={24}
+                  color={colors.text}
+                  style={{ transform: [{ rotate: "45deg" }] }}
+                />
               </TouchableOpacity>
             </View>
             {selectedLeave ? (
-              <View style={styles.modalBody}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>ID</Text>
-                  <Text style={styles.detailValue}>{selectedLeave.name}</Text>
+              <View style={[styles.modalBody, dynamicStyles.modalBody]}>
+                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                  <Text style={[styles.label, dynamicStyles.label]}>ID</Text>
+                  <Text style={[styles.value, dynamicStyles.value]}>
+                    {selectedLeave.name}
+                  </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Employee</Text>
-                  <Text style={styles.detailValue}>
+                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                  <Text style={[styles.label, dynamicStyles.label]}>
+                    Employee
+                  </Text>
+                  <Text style={[styles.value, dynamicStyles.value]}>
                     {selectedLeave.employee_name}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Period</Text>
-                  <Text style={styles.detailValue}>
+                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                  <Text style={[styles.label, dynamicStyles.label]}>
+                    Period
+                  </Text>
+                  <Text style={[styles.value, dynamicStyles.value]}>
                     {formatDate(selectedLeave.from_date)} -{" "}
                     {formatDate(selectedLeave.to_date)}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Days</Text>
-                  <Text style={styles.detailValue}>
+                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                  <Text style={[styles.label, dynamicStyles.label]}>Days</Text>
+                  <Text style={[styles.value, dynamicStyles.value]}>
                     {String(selectedLeave.total_leave_days || 0)}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Type</Text>
-                  <Text style={styles.detailValue}>
+                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                  <Text style={[styles.label, dynamicStyles.label]}>Type</Text>
+                  <Text style={[styles.value, dynamicStyles.value]}>
                     {selectedLeave.leave_type}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Status</Text>
-                  <Text style={styles.detailValue}>
+                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                  <Text style={[styles.label, dynamicStyles.label]}>
+                    Status
+                  </Text>
+                  <Text style={[styles.value, dynamicStyles.value]}>
                     {selectedLeave.status === "Open" ||
                     selectedLeave.docstatus === 0
                       ? "Pending"
                       : selectedLeave.status}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Reason</Text>
-                  <Text style={styles.detailValue}>
+                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                  <Text style={[styles.label, dynamicStyles.label]}>
+                    Reason
+                  </Text>
+                  <Text style={[styles.value, dynamicStyles.value]}>
                     {selectedLeave.description || "N/A"}
                   </Text>
                 </View>
+                <View style={[styles.modalFooter, dynamicStyles.modalFooter]}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.approveButton]}
+                    onPress={() => handleLeaveStatusChange("Approved")}
+                  >
+                    <Text style={styles.actionButtonText}>Approve</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.rejectButton]}
+                    onPress={() => handleLeaveStatusChange("Rejected")}
+                  >
+                    <Text style={styles.actionButtonText}>Reject</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
-              <View style={styles.modalBody}>
-                <ActivityIndicator size="small" color="#271085" />
+              <View style={[styles.centered, dynamicStyles.centered]}>
+                <CustomLoader visible={true} />
               </View>
             )}
           </View>

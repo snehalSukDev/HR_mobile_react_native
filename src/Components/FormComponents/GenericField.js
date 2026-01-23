@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
+import { useTheme } from "../../context/ThemeContext";
 
 const safeDate = (val) => {
   const d = val ? new Date(val) : new Date();
@@ -17,7 +18,30 @@ const safeDate = (val) => {
 };
 
 const GenericField = ({ field, value, onFieldChange, error }) => {
+  const { colors, theme } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const dynamicStyles = useMemo(() => ({
+    label: { color: colors.text },
+    input: {
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      color: colors.text,
+    },
+    checkLabel: { color: colors.text },
+    optionPill: {
+      backgroundColor: theme === "dark" ? "#333" : "#f0f0f0",
+      borderColor: colors.border,
+    },
+    optionPillActive: {
+      backgroundColor: theme === "dark" ? "#0056b3" : "#e6f0ff",
+      borderColor: colors.primary,
+    },
+    optionText: { color: colors.textSecondary },
+    optionTextActive: { color: colors.primary },
+    dateText: { color: value ? colors.text : colors.textSecondary },
+    placeholder: colors.textSecondary,
+  }), [colors, theme, value]);
 
   // Helper to handle simple text changes
   const handleChange = (val) => {
@@ -28,7 +52,7 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
     const isChecked = !!value;
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>
+        <Text style={[styles.label, dynamicStyles.label]}>
           {field.label} {field.reqd ? "*" : ""}
         </Text>
         <TouchableOpacity
@@ -38,9 +62,9 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
           <MaterialIcons
             name={isChecked ? "check-box" : "check-box-outline-blank"}
             size={24}
-            color="#007bff"
+            color={colors.primary}
           />
-          <Text style={styles.checkLabel}>{field.label}</Text>
+          <Text style={[styles.checkLabel, dynamicStyles.checkLabel]}>{field.label}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -56,7 +80,7 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
 
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>
+        <Text style={[styles.label, dynamicStyles.label]}>
           {field.label} {field.reqd ? "*" : ""}
         </Text>
         <View style={[styles.selectContainer, error && styles.inputError]}>
@@ -65,14 +89,16 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
               key={opt}
               style={[
                 styles.optionPill,
-                value === opt && styles.optionPillActive,
+                dynamicStyles.optionPill,
+                value === opt && [styles.optionPillActive, dynamicStyles.optionPillActive],
               ]}
               onPress={() => handleChange(opt)}
             >
               <Text
                 style={[
                   styles.optionText,
-                  value === opt && styles.optionTextActive,
+                  dynamicStyles.optionText,
+                  value === opt && [styles.optionTextActive, dynamicStyles.optionTextActive],
                 ]}
               >
                 {opt}
@@ -87,14 +113,14 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
   if (field.fieldtype === "Date") {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>
+        <Text style={[styles.label, dynamicStyles.label]}>
           {field.label} {field.reqd ? "*" : ""}
         </Text>
         <TouchableOpacity
-          style={[styles.input, error && styles.inputError]}
+          style={[styles.input, dynamicStyles.input, error && styles.inputError]}
           onPress={() => setShowDatePicker(true)}
         >
-          <Text style={{ color: value ? "#333" : "#999" }}>
+          <Text style={dynamicStyles.dateText}>
             {value ? String(value) : "Select date"}
           </Text>
         </TouchableOpacity>
@@ -102,6 +128,8 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
           <DateTimePicker
             mode="date"
             value={safeDate(value)}
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            themeVariant={theme}
             onChange={(event, selectedDate) => {
               setShowDatePicker(false);
               if (selectedDate) {
@@ -130,18 +158,20 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>
+      <Text style={[styles.label, dynamicStyles.label]}>
         {field.label} {field.reqd ? "*" : ""}
       </Text>
       <TextInput
         style={[
           styles.input,
+          dynamicStyles.input,
           error && styles.inputError,
           isMultiline && styles.textArea,
         ]}
         value={value == null ? "" : String(value)}
         onChangeText={handleChange}
         placeholder={field.placeholder || field.label}
+        placeholderTextColor={dynamicStyles.placeholder}
         keyboardType={isNumeric ? "numeric" : "default"}
         multiline={isMultiline}
         numberOfLines={isMultiline ? 3 : 1}
@@ -149,6 +179,7 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

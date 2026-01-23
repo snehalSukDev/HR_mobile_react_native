@@ -54,6 +54,8 @@ const Drawer = createDrawerNavigator();
 const Stack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
 
+import { useTheme } from "../context/ThemeContext";
+
 function RedirectApprovals({ navigation }) {
   React.useEffect(() => {
     navigation.navigate("Close", {
@@ -71,6 +73,7 @@ function HomeStack({
   currentEmployeeId,
   onLogout,
 }) {
+  const { colors } = useTheme();
   const screenOptions = createSharedOptions(onLogout, currentUserEmail);
   return (
     <Stack.Navigator screenOptions={screenOptions}>
@@ -94,7 +97,7 @@ function HomeStack({
                 onPress={() => navigation.goBack()}
                 style={{ paddingHorizontal: 4, paddingVertical: 4 }}
               >
-                <ChevronLeft size={28} color="#000" />
+                <ChevronLeft size={28} color={colors.text} />
               </TouchableOpacity>
               <Image
                 source={techbirdLogo}
@@ -129,7 +132,7 @@ function HomeStack({
                 onPress={() => navigation.goBack()}
                 style={{ paddingHorizontal: 4, paddingVertical: 4 }}
               >
-                <ChevronLeft size={28} color="#000" />
+                <ChevronLeft size={28} color={colors.text} />
               </TouchableOpacity>
               <Image
                 source={techbirdLogo}
@@ -164,7 +167,7 @@ function HomeStack({
                 onPress={() => navigation.goBack()}
                 style={{ paddingHorizontal: 4, paddingVertical: 4 }}
               >
-                <ChevronLeft size={28} color="#000" />
+                <ChevronLeft size={28} color={colors.text} />
               </TouchableOpacity>
               <Image
                 source={techbirdLogo}
@@ -198,7 +201,7 @@ function HomeStack({
               onPress={() => navigation.goBack()}
               style={{ marginLeft: 16 }}
             >
-              <ChevronLeft size={28} color="#000" />
+              <ChevronLeft size={28} color={colors.text} />
             </TouchableOpacity>
           ),
         })}
@@ -221,7 +224,7 @@ function HomeStack({
               onPress={() => navigation.goBack()}
               style={{ marginLeft: 16 }}
             >
-              <ChevronLeft size={28} color="#000" />
+              <ChevronLeft size={28} color={colors.text} />
             </TouchableOpacity>
           ),
         })}
@@ -264,6 +267,53 @@ function ApprovalStack({
   );
 }
 
+function PayslipStack({
+  navigation,
+  currentUserEmail,
+  currentEmployeeId,
+  onLogout,
+}) {
+  const { colors } = useTheme();
+  const screenOptions = createSharedOptions(onLogout, currentUserEmail);
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen name="PayslipsMain" options={{ title: "Payslips" }}>
+        {(props) => (
+          <PayslipScreen
+            {...props}
+            currentUserEmail={currentUserEmail}
+            currentEmployeeId={currentEmployeeId}
+            onLogout={onLogout}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen
+        name="PayslipDetails"
+        options={({ navigation }) => ({
+          title: "Payslip Details",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <ChevronLeft size={28} color={colors.text} />
+            </TouchableOpacity>
+          ),
+        })}
+      >
+        {(props) => (
+          <PayslipDetailScreen
+            {...props}
+            currentUserEmail={currentUserEmail}
+            currentEmployeeId={currentEmployeeId}
+            onLogout={onLogout}
+          />
+        )}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
 // Bottom tabs
 function BottomTabs({
   navigation,
@@ -275,6 +325,10 @@ function BottomTabs({
   const insets = useSafeAreaInsets();
   const screenOptions = createSharedOptions(onLogout, currentUserEmail);
   const [showMoreModal, setShowMoreModal] = useState(false);
+  const { colors, theme } = useTheme();
+
+  const isDark = theme === "dark";
+
   return (
     <>
       <Modal
@@ -284,11 +338,24 @@ function BottomTabs({
         onRequestClose={() => setShowMoreModal(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Select an option</Text>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Select an option
+            </Text>
             <View style={styles.modalOptions}>
               <TouchableOpacity
-                style={styles.modalOption}
+                style={[
+                  styles.modalOption,
+                  {
+                    backgroundColor: isDark ? "#333" : "#f7f7f7",
+                    borderColor: colors.border,
+                  },
+                ]}
                 onPress={() => {
                   setShowMoreModal(false);
                   navigation.navigate("Close", {
@@ -297,13 +364,29 @@ function BottomTabs({
                   });
                 }}
               >
-                <View style={styles.optionIconWrap}>
-                  <CheckCheck size={20} color="#271085" />
+                <View
+                  style={[
+                    styles.optionIconWrap,
+                    {
+                      backgroundColor: isDark ? "#444" : "#e9ecef",
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <CheckCheck size={20} color={colors.primary || "#271085"} />
                 </View>
-                <Text style={styles.optionText}>Approval</Text>
+                <Text style={[styles.optionText, { color: colors.text }]}>
+                  Approval
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalOption}
+                style={[
+                  styles.modalOption,
+                  {
+                    backgroundColor: isDark ? "#333" : "#f7f7f7",
+                    borderColor: colors.border,
+                  },
+                ]}
                 onPress={() => {
                   setShowMoreModal(false);
                   navigation.navigate("Close", {
@@ -312,10 +395,20 @@ function BottomTabs({
                   });
                 }}
               >
-                <View style={styles.optionIconWrap}>
-                  <DollarSign size={20} color="#271085" />
+                <View
+                  style={[
+                    styles.optionIconWrap,
+                    {
+                      backgroundColor: isDark ? "#444" : "#e9ecef",
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <DollarSign size={20} color={colors.primary || "#271085"} />
                 </View>
-                <Text style={styles.optionText}>Expense</Text>
+                <Text style={[styles.optionText, { color: colors.text }]}>
+                  Expense
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -438,6 +531,7 @@ export default function AppNavigator({
   currentEmployeeId,
   onLogout,
 }) {
+  const { colors } = useTheme();
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       {/* MAIN APP */}
@@ -447,7 +541,7 @@ export default function AppNavigator({
             <Drawer.Screen
               name="Close"
               options={{
-                drawerIcon: () => <ChevronLeft size={20} color="#000" />,
+                drawerIcon: () => <ChevronLeft size={20} color={colors.text} />,
               }}
             >
               {(props) => (

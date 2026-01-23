@@ -3,24 +3,35 @@
 // Integrates with Frappe's actual login API.
 
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
 import { loginUser } from '../utils/frappeApi';
+import CustomLoader from "../Components/CustomLoader";
+import Toast from "react-native-toast-message";
 
 const AuthScreen = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const handleLogin = async () => {
     setLoading(true);
-    setError(null);
     try {
       // Call the actual loginUser function from frappeApi.js
       await loginUser(email, password);
-      onLoginSuccess(); // Notify App.js that login was successful
+      Toast.show({
+        type: "success",
+        text1: "Success",
+        text2: "Logged in successfully",
+      });
+      setTimeout(() => {
+         onLoginSuccess(); // Notify App.js that login was successful
+      }, 1000);
     } catch (err) {
-      setError(err.message || "Login failed. Please check credentials and Frappe URL/CORS.");
+      Toast.show({
+        type: "error",
+        text1: "Login Failed",
+        text2: err.message || "Login failed. Please check credentials and Frappe URL/CORS.",
+      });
     } finally {
       setLoading(false);
     }
@@ -28,10 +39,9 @@ const AuthScreen = ({ onLoginSuccess }) => {
 
   return (
     <View style={styles.container}>
+      <CustomLoader visible={loading} />
       <Text style={styles.title}>Welcome to HR Dashboard</Text>
       <Text style={styles.subtitle}>Please login to continue</Text>
-
-      {error && <Text style={styles.errorText}>{error}</Text>}
 
       <TextInput
         style={styles.input}
@@ -56,7 +66,6 @@ const AuthScreen = ({ onLoginSuccess }) => {
         disabled={loading}
         color="#007bff"
       />
-      {loading && <ActivityIndicator style={styles.loadingIndicator} size="small" color="#007bff" />}
     </View>
   );
 };

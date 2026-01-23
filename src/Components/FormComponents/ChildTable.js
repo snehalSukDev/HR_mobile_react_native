@@ -1,17 +1,27 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import GenericField from "./GenericField";
 import LinkField from "./LinkField";
+import { useTheme } from "../../context/ThemeContext";
 
 const ChildTableRow = React.memo(
   ({ row, rowIndex, fields, onRowChange, doctype }) => {
+    const { colors, theme } = useTheme();
     const handleFieldChange = (fieldname, newValue) => {
         onRowChange(rowIndex, fieldname, newValue);
     };
 
+    const dynamicStyles = useMemo(() => ({
+      rowContainer: {
+        backgroundColor: theme === 'dark' ? '#1E1E1E' : '#f9f9f9',
+        borderColor: colors.border
+      },
+      rowTitle: { color: colors.textSecondary },
+    }), [colors, theme]);
+
     return (
-      <View style={styles.rowContainer}>
-        <Text style={styles.rowTitle}>Row {rowIndex + 1}</Text>
+      <View style={[styles.rowContainer, dynamicStyles.rowContainer]}>
+        <Text style={[styles.rowTitle, dynamicStyles.rowTitle]}>Row {rowIndex + 1}</Text>
         {fields.map((cf) => {
           const value = row[cf.fieldname];
 
@@ -42,7 +52,15 @@ const ChildTableRow = React.memo(
 );
 
 const ChildTable = ({ table, values, setFieldValue, doctype }) => {
+  const { colors, theme } = useTheme();
   const rows = Array.isArray(values) ? values : [];
+
+  const dynamicStyles = useMemo(() => ({
+    container: { borderTopColor: colors.border },
+    title: { color: colors.text },
+    addButton: { backgroundColor: theme === 'dark' ? '#333' : '#e7f1ff' },
+    noDataText: { color: colors.textSecondary },
+  }), [colors, theme]);
 
   const handleAddRow = useCallback(() => {
     const newRow = {};
@@ -62,18 +80,18 @@ const ChildTable = ({ table, values, setFieldValue, doctype }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       <View style={styles.header}>
-        <Text style={styles.title}>
+        <Text style={[styles.title, dynamicStyles.title]}>
           {table.label} ({table.options})
         </Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddRow}>
+        <TouchableOpacity style={[styles.addButton, dynamicStyles.addButton]} onPress={handleAddRow}>
           <Text style={styles.addButtonText}>Add Row</Text>
         </TouchableOpacity>
       </View>
 
       {rows.length === 0 ? (
-        <Text style={styles.noDataText}>No rows. Tap Add Row.</Text>
+        <Text style={[styles.noDataText, dynamicStyles.noDataText]}>No rows. Tap Add Row.</Text>
       ) : (
         rows.map((row, index) => (
           <ChildTableRow
@@ -89,6 +107,7 @@ const ChildTable = ({ table, values, setFieldValue, doctype }) => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

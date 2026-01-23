@@ -8,9 +8,7 @@ import {
   Modal,
   TextInput,
   Platform,
-  ToastAndroid,
   KeyboardAvoidingView,
-  ActivityIndicator,
   Keyboard,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -24,10 +22,12 @@ import {
 } from "../utils/frappeApi";
 import { Formik, useFormikContext } from "formik";
 import { format } from "date-fns";
-import { Alert } from "react-native";
+import Toast from "react-native-toast-message";
 
 import GenericField from "./FormComponents/GenericField";
 import LinkField from "./FormComponents/LinkField";
+import { useTheme } from "../context/ThemeContext";
+import CustomLoader from "./CustomLoader";
 
 const safeDate = (val) => {
   const d = val ? new Date(val) : new Date();
@@ -42,8 +42,10 @@ const DoctypeExpenseModal = ({
   onSuccess,
   hiddenFields = [],
 }) => {
+  const { colors, theme } = useTheme();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [childTables, setChildTables] = useState([]);
   const [invalidFields, setInvalidFields] = useState({});
   const [employeeDetails, setEmployeeDetails] = useState(null);
@@ -51,6 +53,31 @@ const DoctypeExpenseModal = ({
   const positionsRef = useRef({});
   const isMountedRef = useRef(true);
   const metaCacheRef = useRef({});
+
+  const dynamicStyles = useMemo(
+    () => ({
+      modalContainer: { backgroundColor: colors.background },
+      modalHeader: {
+        borderBottomColor: colors.border,
+        backgroundColor: colors.card,
+      },
+      modalTitle: { color: colors.text },
+      modalBody: { backgroundColor: colors.background },
+      modalFooter: {
+        borderTopColor: colors.border,
+        backgroundColor: colors.card,
+      },
+      noDataText: { color: colors.textSecondary },
+      childTableTitle: { color: colors.text },
+      childRowContainer: {
+        backgroundColor: theme === "dark" ? "#1E1E1E" : "#f9f9f9",
+        borderColor: colors.border,
+      },
+      childRowTitle: { color: colors.textSecondary },
+      closeIcon: { color: colors.text },
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -177,7 +204,11 @@ const DoctypeExpenseModal = ({
         setChildTables(tables);
       } catch (err) {
         console.error("loadMeta error", err);
-        Alert.alert("Error", "Failed to load form definition");
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to load form definition",
+        });
         onClose();
       } finally {
         if (isMountedRef.current) setLoading(false);
@@ -220,19 +251,22 @@ const DoctypeExpenseModal = ({
       <View style={styles.modalBackdrop}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.modalContainer}
+          style={[styles.modalContainer, dynamicStyles.modalContainer]}
         >
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title || doctype}</Text>
+          <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+              {title || doctype}
+            </Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialIcons name="close" size={22} color="#333" />
+              <MaterialIcons
+                name="close"
+                size={22}
+                color={dynamicStyles.closeIcon.color}
+              />
             </TouchableOpacity>
           </View>
-          {loading ? (
-            <View style={styles.loaderContainer}>
-              <ActivityIndicator size="large" color="#007bff" />
-            </View>
-          ) : (
+          <CustomLoader visible={loading || isSaving} />
+          {!loading && (
             <Formik
               initialValues={initialValues}
               enableReinitialize={true}
@@ -316,12 +350,14 @@ const DoctypeExpenseModal = ({
                     if (!isMountedRef.current) return;
                   }
 
-                  Alert.alert(
-                    "Success",
-                    doctype === "Attendance Request"
-                      ? `${doctype} submitted successfully`
-                      : `${doctype} saved successfully`,
-                  );
+                  Toast.show({
+                    type: "success",
+                    text1: "Success",
+                    text2:
+                      doctype === "Attendance Request"
+                        ? `${doctype} submitted successfully`
+                        : `${doctype} saved successfully`,
+                  });
                   if (typeof onSuccess === "function") {
                     onSuccess({ saved, tempDoc: doc, doctype });
                   }
@@ -332,13 +368,14 @@ const DoctypeExpenseModal = ({
                     (err && err.serverMessagesText) ||
                     err.message ||
                     String(err);
-                  if (Platform.OS === "android") {
-                    ToastAndroid.show(serverText, ToastAndroid.LONG);
-                  } else {
-                    Alert.alert("Error", serverText);
-                  }
+                  Toast.show({
+                    type: "error",
+                    text1: "Error",
+                    text2: serverText,
+                  });
                 } finally {
                   setSubmitting(false);
+                  setIsSaving(false);
                 }
               }}
             >
@@ -371,7 +408,7 @@ const DoctypeExpenseModal = ({
                 return (
                   <>
                     <ScrollView
-                      style={styles.modalBody}
+                      style={[styles.modalBody, dynamicStyles.modalBody]}
                       ref={scrollRef}
                       keyboardShouldPersistTaps="handled"
                     >
@@ -380,9 +417,14 @@ const DoctypeExpenseModal = ({
                           <MaterialIcons
                             name="info-outline"
                             size={24}
-                            color="#666"
+                            color={colors.textSecondary}
                           />
-                          <Text style={styles.noDataText}>
+                          <Text
+                            style={[
+                              styles.noDataText,
+                              dynamicStyles.noDataText,
+                            ]}
+                          >
                             No fields available.
                           </Text>
                         </View>
@@ -430,7 +472,12 @@ const DoctypeExpenseModal = ({
                                 style={styles.childTableSection}
                               >
                                 <View style={styles.childRowHeader}>
-                                  <Text style={styles.childTableTitle}>
+                                  <Text
+                                    style={[
+                                      styles.childTableTitle,
+                                      dynamicStyles.childTableTitle,
+                                    ]}
+                                  >
                                     {tbl.label} ({tbl.options})
                                   </Text>
                                   <TouchableOpacity
@@ -461,16 +508,29 @@ const DoctypeExpenseModal = ({
                                   </TouchableOpacity>
                                 </View>
                                 {rows.length === 0 ? (
-                                  <Text style={styles.noDataText}>
+                                  <Text
+                                    style={[
+                                      styles.noDataText,
+                                      dynamicStyles.noDataText,
+                                    ]}
+                                  >
                                     No rows. Tap Add Row.
                                   </Text>
                                 ) : (
                                   rows.map((row, rowIndex) => (
                                     <View
                                       key={`${tbl.fieldname}-row-${rowIndex}`}
-                                      style={styles.childRowContainer}
+                                      style={[
+                                        styles.childRowContainer,
+                                        dynamicStyles.childRowContainer,
+                                      ]}
                                     >
-                                      <Text style={styles.childRowTitle}>
+                                      <Text
+                                        style={[
+                                          styles.childRowTitle,
+                                          dynamicStyles.childRowTitle,
+                                        ]}
+                                      >
                                         Row {rowIndex + 1}
                                       </Text>
                                       {tbl.fields.map((cf) => {
@@ -517,7 +577,9 @@ const DoctypeExpenseModal = ({
                         </View>
                       )}
                     </ScrollView>
-                    <View style={styles.modalFooter}>
+                    <View
+                      style={[styles.modalFooter, dynamicStyles.modalFooter]}
+                    >
                       <TouchableOpacity
                         style={[
                           styles.footerButton,
@@ -530,7 +592,7 @@ const DoctypeExpenseModal = ({
                       <TouchableOpacity
                         style={[
                           styles.footerButton,
-                          { backgroundColor: "#007bff" },
+                          { backgroundColor: colors.primary },
                         ]}
                         onPress={handleSubmit}
                       >
@@ -543,6 +605,7 @@ const DoctypeExpenseModal = ({
             </Formik>
           )}
         </KeyboardAvoidingView>
+        <Toast />
       </View>
     </Modal>
   );

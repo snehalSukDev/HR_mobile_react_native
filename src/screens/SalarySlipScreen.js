@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   TouchableOpacity,
-  Alert,
   Button,
   Modal,
   Linking,
@@ -14,6 +18,8 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { WebView } from "react-native-webview";
+import Toast from "react-native-toast-message";
+import CustomLoader from "../Components/CustomLoader";
 import {
   getResourceList,
   callFrappeMethod,
@@ -21,6 +27,7 @@ import {
 } from "../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
 import { List as ListIcon, DollarSign } from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -42,7 +49,67 @@ const SalarySlipScreen = ({
   currentEmployeeId,
   onLogout,
 }) => {
+  const { colors, theme } = useTheme();
   const isMountedRef = useRef(true);
+
+  const getStatusColors = (status) => {
+    const isDark = theme === "dark";
+    const map = {
+      Draft: {
+        bg: isDark ? "#1a3d3d" : "#e0f2f1",
+        text: isDark ? "#80cbc4" : "#00695c",
+      },
+      Submitted: {
+        bg: isDark ? "#4e342e" : "#fff3e0",
+        text: isDark ? "#ffcc80" : "#ef6c00",
+      },
+      Cancelled: {
+        bg: isDark ? "#3e2723" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Paid: {
+        bg: isDark ? "#1b5e20" : "#e8f5e9",
+        text: isDark ? "#a5d6a7" : "#2e7d32",
+      },
+      Unpaid: {
+        bg: isDark ? "#3e2723" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Overdue: {
+        bg: isDark ? "#4a1b2c" : "#fce4ec",
+        text: isDark ? "#f48fb1" : "#880e4f",
+      },
+    };
+    return map[status] || { bg: colors.card, text: colors.text };
+  };
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      centered: { backgroundColor: colors.background },
+      loadingText: { color: colors.textSecondary },
+      errorText: { color: colors.error || "#dc3545" },
+      text: { color: colors.text },
+      card: { backgroundColor: colors.card, borderColor: colors.border },
+      iconContainer: {
+        backgroundColor: theme === "dark" ? "#333" : "#f0f0f0",
+        borderColor: colors.border,
+      },
+      employeeName: { color: colors.text },
+      dateText: { color: colors.textSecondary },
+      amountText: { color: colors.text },
+      listHeaderBar: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      listHeaderTitle: { color: colors.text },
+      emptyText: { color: colors.textSecondary },
+      modalBackdrop: { backgroundColor: "rgba(0,0,0,0.5)" },
+      modalCard: { backgroundColor: colors.card, borderColor: colors.border },
+      modalTitle: { color: colors.text },
+      modalBody: { backgroundColor: colors.card },
+      detailLabel: { color: colors.textSecondary },
+      detailValue: { color: colors.text },
+    }),
+    [colors, theme],
+  );
   const [salarySlips, setSalarySlips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,6 +121,7 @@ const SalarySlipScreen = ({
   const [downloading, setDownloading] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -103,6 +171,11 @@ const SalarySlipScreen = ({
       } catch (err) {
         console.error("Error fetching salary slips:", err);
         if (isMountedRef.current) {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: `Failed to load salary slips: ${err.message || "Unknown error"}`,
+          });
           setError(
             `Failed to load salary slips: ${err.message || "Unknown error"}`,
           );
@@ -147,7 +220,11 @@ const SalarySlipScreen = ({
     } catch (e) {
       if (isMountedRef.current) {
         setDocinfo(null);
-        Alert.alert("Error", "Failed to load salary slip details");
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to load salary slip details",
+        });
       }
     }
   };
@@ -193,7 +270,11 @@ const SalarySlipScreen = ({
 
       if (isMountedRef.current) {
         if (!url) {
-          Alert.alert("View", "No document available to view");
+          Toast.show({
+            type: "info",
+            text1: "Info",
+            text2: "No document available to view",
+          });
         } else {
           setPdfUrl(url);
           setShowPdfModal(true);
@@ -207,29 +288,30 @@ const SalarySlipScreen = ({
   };
 
   const renderItem = ({ item }) => {
-    const statusColor = statusToColorMap[item.status]?.bg || "#f0f2f5";
-    const statusTextColor = statusToColorMap[item.status]?.text || "#333";
+    const { bg, text } = getStatusColors(item.status);
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, dynamicStyles.card]}
         onPress={() => handleViewSalarySlip(item)}
       >
         <View style={styles.cardRow}>
-          <View style={styles.iconContainer}>
-            <DollarSign size={20} color="#555" />
+          <View style={[styles.iconContainer, dynamicStyles.iconContainer]}>
+            <DollarSign size={20} color={colors.textSecondary} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.employeeName}>{item.employee_name}</Text>
-            <Text style={styles.dateText}>
+            <Text style={[styles.employeeName, dynamicStyles.employeeName]}>
+              {item.employee_name}
+            </Text>
+            <Text style={[styles.dateText, dynamicStyles.dateText]}>
               {formatDate(item.start_date)} - {formatDate(item.end_date)}
             </Text>
-            <Text style={styles.amountText}>
+            <Text style={[styles.amountText, dynamicStyles.amountText]}>
               Net: ₹ {parseFloat(item.net_pay || 0).toFixed(2)}
             </Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <Text style={[styles.statusText, { color: statusTextColor }]}>
+          <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+            <Text style={[styles.statusText, { color: text }]}>
               {item.status}
             </Text>
           </View>
@@ -240,10 +322,12 @@ const SalarySlipScreen = ({
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <View style={styles.listHeaderBar}>
+      <View style={[styles.listHeaderBar, dynamicStyles.listHeaderBar]}>
         <View style={styles.listHeaderLeft}>
           <ListIcon size={18} color="orange" />
-          <Text style={styles.listHeaderTitle}>Salary Slips List</Text>
+          <Text style={[styles.listHeaderTitle, dynamicStyles.listHeaderTitle]}>
+            Salary Slips List
+          </Text>
         </View>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{salarySlips.length}</Text>
@@ -252,44 +336,41 @@ const SalarySlipScreen = ({
     </View>
   );
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading salary slips...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button
-          title="Reload"
-          onPress={() => fetchSalarySlips()}
-          color="#007bff"
-        />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={salarySlips}
-        keyExtractor={(item) => item.name}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={renderHeader}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No salary slips found.</Text>
-          </View>
-        }
-      />
+    <View style={[styles.container, dynamicStyles.container]}>
+      <CustomLoader visible={loading && !refreshing} />
+      {/* Also show loader when downloading/viewing slip if needed, or rely on internal modal state */}
+      <CustomLoader visible={downloading} />
+
+      {error ? (
+        <View style={[styles.centered, dynamicStyles.centered]}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Button
+            title="Reload"
+            onPress={() => fetchSalarySlips()}
+            color={colors.primary}
+          />
+        </View>
+      ) : (
+        <FlatList
+          data={salarySlips}
+          keyExtractor={(item) => item.name}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={renderHeader}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListEmptyComponent={
+            !loading && (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
+                  No salary slips found.
+                </Text>
+              </View>
+            )
+          }
+        />
+      )}
 
       {/* Detail Modal */}
       <Modal
@@ -298,48 +379,66 @@ const SalarySlipScreen = ({
         animationType="slide"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+        <View style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}>
+          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Salary Slip</Text>
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                Salary Slip
+              </Text>
               <TouchableOpacity onPress={() => setShowModal(false)}>
-                <MaterialIcons name="close" size={22} color="#333" />
+                <MaterialIcons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
             {selectedSlip ? (
-              <View style={styles.modalBody}>
+              <View style={[styles.modalBody, dynamicStyles.modalBody]}>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>ID</Text>
-                  <Text style={styles.detailValue}>{selectedSlip.name}</Text>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    ID
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
+                    {selectedSlip.name}
+                  </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Employee</Text>
-                  <Text style={styles.detailValue}>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    Employee
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
                     {selectedSlip.employee_name}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Period</Text>
-                  <Text style={styles.detailValue}>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    Period
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
                     {formatDate(selectedSlip.start_date)} -{" "}
                     {formatDate(selectedSlip.end_date)}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Gross Pay</Text>
-                  <Text style={styles.detailValue}>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    Gross Pay
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
                     ₹ {parseFloat(selectedSlip.gross_pay || 0).toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Net Pay</Text>
-                  <Text style={styles.detailValue}>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    Net Pay
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
                     ₹ {parseFloat(selectedSlip.net_pay || 0).toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Status</Text>
-                  <Text style={styles.detailValue}>{selectedSlip.status}</Text>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    Status
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
+                    {selectedSlip.status}
+                  </Text>
                 </View>
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
@@ -359,9 +458,7 @@ const SalarySlipScreen = ({
                 </View>
               </View>
             ) : (
-              <View style={styles.modalBody}>
-                <ActivityIndicator size="small" color="#271085" />
-              </View>
+              <View style={[styles.modalBody, dynamicStyles.modalBody]} />
             )}
           </View>
         </View>
@@ -376,40 +473,32 @@ const SalarySlipScreen = ({
         <View
           style={{
             flex: 1,
-            backgroundColor: "#fff",
+            backgroundColor: colors.background,
             paddingTop: Platform.OS === "android" ? 30 : 50,
           }}
         >
-          <View style={[styles.modalHeader, { paddingHorizontal: 16 }]}>
-            <Text style={styles.modalTitle}>Salary Slip View</Text>
+          <View
+            style={[
+              styles.modalHeader,
+              { paddingHorizontal: 16, borderBottomColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+              Salary Slip View
+            </Text>
             <TouchableOpacity
               onPress={() => setShowPdfModal(false)}
               style={{ padding: 4 }}
             >
-              <MaterialIcons name="close" size={26} color="#333" />
+              <MaterialIcons name="close" size={26} color={colors.text} />
             </TouchableOpacity>
           </View>
           {pdfUrl && (
             <WebView
               source={{ uri: pdfUrl }}
               style={{ flex: 1 }}
-              startInLoadingState
-              renderLoading={() => (
-                <View
-                  style={[
-                    styles.centered,
-                    {
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                    },
-                  ]}
-                >
-                  <ActivityIndicator size="large" color="#271085" />
-                </View>
-              )}
+              onLoadStart={() => setPdfLoading(true)}
+              onLoadEnd={() => setPdfLoading(false)}
             />
           )}
         </View>

@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { ThemeContext } from '../context/ThemeContext';
 
 class ErrorBoundary extends React.Component {
+  static contextType = ThemeContext;
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
@@ -24,22 +26,27 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const { colors } = this.context;
+      
       // You can render any custom fallback UI
       return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
           <ScrollView contentContainerStyle={styles.content}>
             <Text style={styles.title}>Something went wrong.</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               We're sorry, but an unexpected error occurred.
             </Text>
             
-            <View style={styles.errorBox}>
-                <Text style={styles.errorText}>
+            <View style={[styles.errorBox, { backgroundColor: colors.error + '1A' }]}>
+                <Text style={[styles.errorText, { color: colors.error }]}>
                     {this.state.error && this.state.error.toString()}
                 </Text>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={this.resetError}>
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: colors.primary }]} 
+              onPress={this.resetError}
+            >
               <Text style={styles.buttonText}>Try Again</Text>
             </TouchableOpacity>
           </ScrollView>

@@ -1,7 +1,9 @@
 // src/components/ProfileAvatar.js
-import React, { useEffect, useState } from "react";
-import { Image, View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useEffect, useState, useMemo } from "react";
+import { Image, View, Text, StyleSheet } from "react-native";
 import { getFrappeBaseUrl } from "../utils/frappeApi";
+import { useTheme } from "../context/ThemeContext";
+import CustomLoader from "./CustomLoader";
 
 const getInitials = (name = "") => {
   if (!name) return "?";
@@ -11,9 +13,22 @@ const getInitials = (name = "") => {
 };
 
 const ProfileAvatar = ({ imagePath, employeeName, size = 60 }) => {
+  const { colors, theme } = useTheme();
   const [imageUri, setImageUri] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      loader: { backgroundColor: colors.background },
+      initialContainer: {
+        backgroundColor: theme === "dark" ? "#333" : "#e0e0e0",
+        borderColor: colors.border,
+      },
+      initials: { color: colors.textSecondary },
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -67,10 +82,11 @@ const ProfileAvatar = ({ imagePath, employeeName, size = 60 }) => {
         style={[
           styles.avatar,
           styles.loader,
+          dynamicStyles.loader,
           { width: size, height: size, borderRadius: size / 2 },
         ]}
       >
-        <ActivityIndicator size="small" color="#0C8DB6" />
+        <CustomLoader visible={true} />
       </View>
     );
   }
@@ -95,10 +111,17 @@ const ProfileAvatar = ({ imagePath, employeeName, size = 60 }) => {
       style={[
         styles.avatar,
         styles.initialContainer,
+        dynamicStyles.initialContainer,
         { width: size, height: size, borderRadius: size / 2 },
       ]}
     >
-      <Text style={[styles.initialText, { fontSize: size * 0.4 }]}>
+      <Text
+        style={[
+          styles.initialText,
+          dynamicStyles.initialText,
+          { fontSize: size * 0.4 },
+        ]}
+      >
         {getInitials(employeeName)}
       </Text>
     </View>

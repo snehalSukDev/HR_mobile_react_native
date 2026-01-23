@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
   RefreshControl,
-  Alert,
   FlatList,
 } from "react-native";
 import { getResource, getResourceList } from "../utils/frappeApi";
@@ -22,14 +26,11 @@ import {
   Plus,
   CalendarCheck,
 } from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext";
+import CustomLoader from "../Components/CustomLoader";
+import Toast from "react-native-toast-message";
 
 // --- Constants and Utility Functions (Keep as is, they are good!) ---
-const STATUS_COLORS = {
-  Present: { bg: "#d4edda", text: "#155724" },
-  Absent: { bg: "#f8d7da", text: "#721c24" },
-  Leave: { bg: "#cce5ff", text: "#004085" },
-  Holiday: { bg: "#fff3cd", text: "#856404" },
-};
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -54,6 +55,31 @@ const getLeaveColor = (type) => {
 // --- End Constants and Utility Functions ---
 
 const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
+  const { colors, theme } = useTheme();
+
+  const getStatusColors = (status) => {
+    const isDark = theme === "dark";
+    const map = {
+      Present: {
+        bg: isDark ? "#1b5e20" : "#d4edda", // Darker green for dark mode
+        text: isDark ? "#a5d6a7" : "#155724",
+      },
+      Absent: {
+        bg: isDark ? "#7f0000" : "#f8d7da", // Darker red for dark mode
+        text: isDark ? "#ef9a9a" : "#721c24",
+      },
+      Leave: {
+        bg: isDark ? "#0d47a1" : "#cce5ff", // Darker blue for dark mode
+        text: isDark ? "#90caf9" : "#004085",
+      },
+      Holiday: {
+        bg: isDark ? "#f57f17" : "#fff3cd", // Darker yellow/orange for dark mode
+        text: isDark ? "#fff59d" : "#856404",
+      },
+    };
+    return map[status] || { bg: colors.card, text: colors.text };
+  };
+
   const doctype = "Leave Application";
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 400;
@@ -69,6 +95,48 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   const [error, setError] = useState(null);
   const [viewType, setViewType] = useState("list");
   const [showApplyModal, setShowApplyModal] = useState(false);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      centered: { backgroundColor: colors.background },
+      text: { color: colors.text },
+      textSecondary: { color: colors.textSecondary },
+      card: { backgroundColor: colors.card, borderColor: colors.border },
+      leaveCard: { backgroundColor: colors.card, borderColor: colors.border },
+      cardTitle: { color: colors.text },
+      statLabel: { color: colors.textSecondary },
+      statValue: { color: colors.text },
+      statItem: { borderBottomColor: colors.border },
+      viewToggles: { backgroundColor: colors.card, borderColor: colors.border },
+      listHeaderBar: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      listHeaderTitle: { color: colors.text },
+      noDataContainer: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      noDataText: { color: colors.textSecondary },
+      legendText: { color: colors.textSecondary },
+      calendarStyle: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      loadingText: { color: colors.textSecondary },
+      calendarTheme: {
+        backgroundColor: colors.card,
+        calendarBackground: colors.card,
+        textSectionTitleColor: colors.textSecondary,
+        dayTextColor: colors.text,
+        todayTextColor: colors.primary,
+        monthTextColor: colors.text,
+        arrowColor: colors.primary,
+        textDisabledColor: colors.border,
+        selectedDayBackgroundColor: colors.primary,
+        dotColor: colors.primary,
+      },
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     return () => {
@@ -192,10 +260,12 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       } catch (err) {
         console.error("🔥 Error fetching leave data:", err);
         if (isMountedRef.current) {
-          Alert.alert(
-            "Error",
-            "Failed to load leave data. Please check your internet connection or try again later.",
-          );
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2:
+              "Failed to load leave data. Please check your internet connection.",
+          });
           setError("Failed to fetch leave data.");
         }
       } finally {
@@ -230,14 +300,15 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       const end = new Date(app.to_date);
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const key = d.toISOString().split("T")[0];
+        const { bg, text } = getStatusColors("Leave");
         marks[key] = {
           customStyles: {
             container: {
-              backgroundColor: STATUS_COLORS.Leave.bg,
+              backgroundColor: bg,
               borderWidth: 1,
-              borderColor: STATUS_COLORS.Leave.text + "33",
+              borderColor: text + "33",
             },
-            text: { color: STATUS_COLORS.Leave.text, fontWeight: "bold" },
+            text: { color: text, fontWeight: "bold" },
           },
         };
       }
@@ -246,20 +317,21 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
     if (Array.isArray(holidays)) {
       holidays.forEach((holiday) => {
         const key = holiday.date;
+        const leaveColors = getStatusColors("Leave");
         // Apply holiday style, but allow leave to override if it's both
         if (
           !marks[key] ||
-          marks[key].customStyles.container.backgroundColor !==
-            STATUS_COLORS.Leave.bg
+          marks[key].customStyles.container.backgroundColor !== leaveColors.bg
         ) {
+          const { bg, text } = getStatusColors("Holiday");
           marks[key] = {
             customStyles: {
               container: {
-                backgroundColor: STATUS_COLORS.Holiday.bg,
+                backgroundColor: bg,
                 borderWidth: 1,
-                borderColor: STATUS_COLORS.Holiday.text + "33",
+                borderColor: text + "33",
               },
-              text: { color: STATUS_COLORS.Holiday.text, fontWeight: "bold" },
+              text: { color: text, fontWeight: "bold" },
             },
           };
         }
@@ -271,14 +343,15 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       // Apply attendance style, but allow leave/holiday to override
       if (!marks[key]) {
         const status = entry.status;
+        const { bg, text } = getStatusColors(status);
         marks[key] = {
           customStyles: {
             container: {
-              backgroundColor: STATUS_COLORS[status]?.bg || "#f0f2f5",
+              backgroundColor: bg || "#f0f2f5",
               borderWidth: 1,
-              borderColor: (STATUS_COLORS[status]?.text || "#aaa") + "33",
+              borderColor: (text || "#aaa") + "33",
             },
-            text: { color: STATUS_COLORS[status]?.text || "#333" },
+            text: { color: text || "#333" },
           },
         };
       }
@@ -290,7 +363,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.toolbar}>
-        <View style={styles.viewToggles}>
+        <View style={[styles.viewToggles, dynamicStyles.viewToggles]}>
           <TouchableOpacity
             style={[
               styles.iconButton,
@@ -298,7 +371,10 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
             ]}
             onPress={() => setViewType("list")}
           >
-            <ListIcon size={20} color={viewType === "list" ? "#fff" : "#333"} />
+            <ListIcon
+              size={20}
+              color={viewType === "list" ? "#fff" : colors.text}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -309,7 +385,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           >
             <CalendarIcon
               size={20}
-              color={viewType === "calendar" ? "#fff" : "#333"}
+              color={viewType === "calendar" ? "#fff" : colors.text}
             />
           </TouchableOpacity>
         </View>
@@ -324,10 +400,14 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       </View>
 
       {viewType === "list" && (
-        <View style={styles.listHeaderBar}>
+        <View style={[styles.listHeaderBar, dynamicStyles.listHeaderBar]}>
           <View style={styles.listHeaderLeft}>
             <ListIcon size={18} color="orange" />
-            <Text style={styles.listHeaderTitle}>Leave Applications</Text>
+            <Text
+              style={[styles.listHeaderTitle, dynamicStyles.listHeaderTitle]}
+            >
+              Leave Applications
+            </Text>
           </View>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{leaveApplications.length}</Text>
@@ -342,16 +422,19 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
       ? getLeaveColor(item.leave_type)
       : "#6c757d";
     return (
-      <TouchableOpacity style={styles.card} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={[styles.card, dynamicStyles.card]}
+        activeOpacity={0.85}
+      >
         <View style={styles.cardRow}>
           <View style={styles.iconContainer}>
             <CalendarCheck size={20} color="#555" />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.employeeName}>
+            <Text style={[styles.employeeName, dynamicStyles.text]}>
               {item.leave_type || "Leave"}
             </Text>
-            <Text style={styles.dateText}>
+            <Text style={[styles.dateText, dynamicStyles.textSecondary]}>
               {formatDate(item.from_date)} - {formatDate(item.to_date)}
             </Text>
           </View>
@@ -390,6 +473,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
             key={`${item.type}-${index}`}
             style={[
               styles.leaveCard,
+              dynamicStyles.leaveCard,
               (index + 1) % 2 === 0 && { marginRight: 0 },
             ]}
           >
@@ -426,34 +510,20 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
     </View>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>
-          Loading your leave and attendance data...
-        </Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <MaterialIcons name="error-outline" size={50} color="#dc3545" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchLeaveData}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
+      <CustomLoader visible={loading && !refreshing} />
       {renderHeader()}
 
-      {viewType === "calendar" ? (
+      {error ? (
+        <View style={[styles.centered, dynamicStyles.centered]}>
+          <MaterialIcons name="error-outline" size={50} color="#dc3545" />
+          <Text style={[styles.errorText, dynamicStyles.text]}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchLeaveData}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : viewType === "calendar" ? (
         <ScrollView
           contentContainerStyle={styles.contentContainer}
           refreshControl={
@@ -465,26 +535,24 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           }
         >
           <Calendar
+            key={theme}
             markingType="custom"
             markedDates={getMarkedDates()}
-            style={styles.calendarStyle}
-            theme={{
-              todayTextColor: "#007bff",
-              arrowColor: "#007bff",
-              selectedDayBackgroundColor: "#007bff",
-              dotColor: "#007bff",
-            }}
+            style={[styles.calendarStyle, dynamicStyles.calendarStyle]}
+            theme={dynamicStyles.calendarTheme}
           />
           <View style={styles.legendContainer}>
-            {Object.keys(STATUS_COLORS).map((key) => (
+            {["Present", "Absent", "Leave", "Holiday"].map((key) => (
               <View key={key} style={styles.legendItem}>
                 <View
                   style={[
                     styles.legendColorBox,
-                    { backgroundColor: STATUS_COLORS[key].bg },
+                    { backgroundColor: getStatusColors(key).bg },
                   ]}
                 />
-                <Text style={styles.legendText}>{key}</Text>
+                <Text style={[styles.legendText, dynamicStyles.legendText]}>
+                  {key}
+                </Text>
               </View>
             ))}
           </View>
@@ -501,12 +569,18 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           ListHeaderComponent={renderLeaveBalancesHeader}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.noDataContainer}>
-              <MaterialIcons name="event-note" size={40} color="#666" />
-              <Text style={styles.noDataText}>
+            <View
+              style={[styles.noDataContainer, dynamicStyles.noDataContainer]}
+            >
+              <MaterialIcons
+                name="event-note"
+                size={40}
+                color={colors.textSecondary}
+              />
+              <Text style={[styles.noDataText, dynamicStyles.noDataText]}>
                 No leave applications found.
               </Text>
-              <Text style={styles.noDataSubText}>
+              <Text style={[styles.noDataSubText, dynamicStyles.textSecondary]}>
                 Tap Apply Leave to create a new request.
               </Text>
             </View>

@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
-  Alert,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +14,9 @@ import {
   Animated,
 } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
+import Toast from "react-native-toast-message";
+import CustomLoader from "../Components/CustomLoader";
+import { useTheme } from "../context/ThemeContext";
 import {
   getFrappeBaseUrl,
   loginUser,
@@ -27,12 +28,43 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const bgImage = require("../assests/login/bg3.png");
 
 const LoginScreen = ({ onLoginSuccess }) => {
+  const { colors, theme } = useTheme();
   const [frappeUrl, setFrappeUrl] = useState(getFrappeBaseUrl());
   const [siteName, setSiteName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      card: {
+        backgroundColor:
+          theme === "dark" ? "rgba(30, 30, 30, 0.9)" : "rgba(255,255,255,0.85)",
+        borderColor:
+          theme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.25)",
+      },
+      text: { color: colors.text },
+      textSecondary: { color: colors.textSecondary },
+      input: {
+        backgroundColor: theme === "dark" ? "#2c2c2c" : "#fff",
+        color: colors.text,
+        borderColor: colors.border,
+      },
+      urlPrefix: {
+        backgroundColor: theme === "dark" ? "#333" : "#f5f7fa",
+        borderRightColor: colors.border,
+      },
+      urlRow: {
+        backgroundColor: theme === "dark" ? "#2c2c2c" : "#fff",
+        borderColor: colors.border,
+      },
+      placeholder: theme === "dark" ? "#888" : "#999",
+      iconColor: theme === "dark" ? "#ccc" : "#666",
+      appTitle: { color: theme === "dark" ? "#63b3ed" : "#2b6cb0" },
+    }),
+    [colors, theme],
+  );
 
   const isMountedRef = useRef(true);
 
@@ -75,11 +107,19 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
   const handleLogin = async () => {
     if (!siteName) {
-      Alert.alert("Validation Error", "Please enter site name.");
+      Toast.show({
+        type: "error",
+        text1: "Validation Error",
+        text2: "Please enter site name.",
+      });
       return;
     }
     if (!email || !password) {
-      Alert.alert("Validation Error", "Please enter both email and password.");
+      Toast.show({
+        type: "error",
+        text1: "Validation Error",
+        text2: "Please enter both email and password.",
+      });
       return;
     }
 
@@ -95,16 +135,31 @@ const LoginScreen = ({ onLoginSuccess }) => {
       if (res?.message === "Logged In") {
         await AsyncStorage.setItem("currentUserEmail", email);
         if (isMountedRef.current) {
-          onLoginSuccess();
+          Toast.show({
+            type: "success",
+            text1: "Success",
+            text2: "Logged in successfully",
+          });
+          setTimeout(() => {
+            onLoginSuccess();
+          }, 1000);
         }
       } else {
         if (isMountedRef.current) {
-          Alert.alert("Login Failed", "Invalid credentials");
+          Toast.show({
+            type: "error",
+            text1: "Login Failed",
+            text2: "Invalid credentials",
+          });
         }
       }
     } catch (error) {
       if (isMountedRef.current) {
-        Alert.alert("Error", error.message);
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: error.message || "Login failed",
+        });
       }
     } finally {
       if (isMountedRef.current) {
@@ -140,18 +195,24 @@ const LoginScreen = ({ onLoginSuccess }) => {
             contentContainerStyle={styles.container}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.card}>
-              <Text style={styles.appTitle}>Techbird HR</Text>
-              <Text style={styles.loginTitle}>Login to Your Account</Text>
+            <View style={[styles.card, dynamicStyles.card]}>
+              <Text style={[styles.appTitle, dynamicStyles.appTitle]}>
+                Techbird HR
+              </Text>
+              <Text style={[styles.loginTitle, dynamicStyles.textSecondary]}>
+                Login to Your Account
+              </Text>
 
-              <View style={styles.urlRow}>
-                <View style={styles.urlPrefix}>
-                  <Text style={styles.urlPrefixText}>https://</Text>
+              <View style={[styles.urlRow, dynamicStyles.urlRow]}>
+                <View style={[styles.urlPrefix, dynamicStyles.urlPrefix]}>
+                  <Text style={[styles.urlPrefixText, dynamicStyles.text]}>
+                    https://
+                  </Text>
                 </View>
                 <TextInput
-                  style={styles.urlInput}
+                  style={[styles.urlInput, { color: colors.text }]}
                   placeholder="yourdomain.com"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={dynamicStyles.placeholder}
                   autoCapitalize="none"
                   keyboardType="url"
                   value={siteName}
@@ -162,9 +223,9 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
               {/* Email */}
               <TextInput
-                style={styles.input}
+                style={[styles.input, dynamicStyles.input]}
                 placeholder="Email or Username"
-                placeholderTextColor="#999"
+                placeholderTextColor={dynamicStyles.placeholder}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={email}
@@ -173,11 +234,11 @@ const LoginScreen = ({ onLoginSuccess }) => {
               />
 
               {/* Password */}
-              <View style={styles.passwordContainer}>
+              <View style={[styles.passwordContainer, dynamicStyles.input]}>
                 <TextInput
-                  style={styles.passwordInput}
+                  style={[styles.passwordInput, { color: colors.text }]}
                   placeholder="Password"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={dynamicStyles.placeholder}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   value={password}
@@ -191,9 +252,9 @@ const LoginScreen = ({ onLoginSuccess }) => {
                   activeOpacity={0.7}
                 >
                   {showPassword ? (
-                    <EyeOff size={20} color="#666" />
+                    <EyeOff size={20} color={dynamicStyles.iconColor} />
                   ) : (
-                    <Eye size={20} color="#666" />
+                    <Eye size={20} color={dynamicStyles.iconColor} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -205,16 +266,15 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 disabled={loading}
                 activeOpacity={0.8}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.loginButtonText}>Login</Text>
-                )}
+                <Text style={styles.loginButtonText}>
+                  {loading ? "Logging in..." : "Login"}
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+      <CustomLoader visible={loading} />
     </View>
   );
 };

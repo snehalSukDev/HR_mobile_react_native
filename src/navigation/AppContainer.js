@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import AppNavigator from "./AppNavigator"; // Main dashboard for logged-in users
 import AuthNavigator from "./AuthNavigator"; // Login/Register flow
+import CustomLoader from "../Components/CustomLoader";
 import {
   getCurrentUser,
   fetchEmployeeDetails,
@@ -127,11 +128,7 @@ const AppContainer = () => {
   };
 
   if (isAuthenticated === null) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#007bff" />
-      </View>
-    );
+    return <CustomLoader visible={true} />;
   }
 
   return (

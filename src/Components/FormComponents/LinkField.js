@@ -1,16 +1,23 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Keyboard,
 } from "react-native";
 import { fnSearchLink, getResource } from "../../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useTheme } from "../../context/ThemeContext";
+import CustomLoader from "../CustomLoader";
 
 const MIN_SEARCH_LENGTH = 0;
 const SEARCH_DEBOUNCE_MS = 200;
@@ -24,6 +31,7 @@ const LinkField = ({
   containerStyle,
   error,
 }) => {
+  const { colors, theme } = useTheme();
   const [results, setResults] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,6 +40,27 @@ const LinkField = ({
   const isMountedRef = useRef(true);
   const debounceTimerRef = useRef(null);
   const inputRef = useRef(null);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      label: { color: colors.text },
+      input: {
+        borderColor: colors.border,
+        backgroundColor: colors.card,
+        color: colors.text,
+      },
+      dropdown: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      item: {
+        borderBottomColor: theme === "dark" ? "#333" : "#f0f0f0",
+      },
+      itemText: { color: colors.text },
+      placeholder: colors.textSecondary,
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -120,13 +149,17 @@ const LinkField = ({
 
   return (
     <View style={[styles.container, containerStyle]} zIndex={isOpen ? 1000 : 1}>
-      <Text style={styles.label}>
+      <Text style={[styles.label, dynamicStyles.label]}>
         {field.label} {field.reqd ? "*" : ""}
       </Text>
       <View>
         <TextInput
           ref={inputRef}
-          style={[styles.input, error && styles.inputError]}
+          style={[
+            styles.input,
+            dynamicStyles.input,
+            error && styles.inputError,
+          ]}
           value={localValue}
           onChangeText={handleTextChange}
           onFocus={handleFocus}
@@ -136,18 +169,13 @@ const LinkField = ({
             }, 200);
           }}
           placeholder={field.placeholder || field.label}
+          placeholderTextColor={dynamicStyles.placeholder}
         />
-        {loading && (
-          <ActivityIndicator
-            style={styles.loader}
-            size="small"
-            color="#007bff"
-          />
-        )}
+        <CustomLoader visible={loading} />
       </View>
 
       {isOpen && results.length > 0 && (
-        <View style={styles.dropdown}>
+        <View style={[styles.dropdown, dynamicStyles.dropdown]}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
@@ -172,10 +200,12 @@ const LinkField = ({
               return (
                 <TouchableOpacity
                   key={`${field.fieldname}-${index}`}
-                  style={styles.item}
+                  style={[styles.item, dynamicStyles.item]}
                   onPress={() => handleSelect(item)}
                 >
-                  <Text style={styles.itemText}>{label}</Text>
+                  <Text style={[styles.itemText, dynamicStyles.itemText]}>
+                    {label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}

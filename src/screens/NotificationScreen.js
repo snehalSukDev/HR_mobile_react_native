@@ -6,15 +6,16 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
-  ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
   InteractionManager,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { BellOff } from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext";
 import { callFrappeMethod } from "../utils/frappeApi";
+import CustomLoader from "../Components/CustomLoader";
+import Toast from "react-native-toast-message";
 
 function cleanHtmlText(input) {
   try {
@@ -70,12 +71,34 @@ const NotificationScreen = ({
   currentEmployeeId,
   onLogout,
 }) => {
+  const { colors, theme } = useTheme();
   const isMountedRef = useRef(true);
   const [notify, setNotify] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      centered: { backgroundColor: colors.background },
+      sectionTitle: { color: colors.text },
+      helperText: { color: colors.textSecondary },
+      errorText: { color: colors.error || "#dc3545" },
+      card: { backgroundColor: colors.card, borderColor: colors.border },
+      cardTitle: { color: colors.text },
+      cardMeta: { color: colors.textSecondary },
+      badgeRead: { backgroundColor: theme === "dark" ? "#333" : "#f2f2f2" },
+      badgeUnread: {
+        backgroundColor: theme === "dark" ? "#1a3a5f" : "#e7f1ff",
+      },
+      badgeText: { color: colors.text },
+      emptyTitle: { color: colors.text },
+      emptySubtitle: { color: colors.textSecondary },
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -144,7 +167,13 @@ const NotificationScreen = ({
         ),
       );
     } catch (e) {
-      Alert.alert("Error", e?.message || "Failed to update notification");
+      if (isMountedRef.current) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: e?.message || "Failed to update notification",
+        });
+      }
     }
   }, []);
 
@@ -155,29 +184,36 @@ const NotificationScreen = ({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, dynamicStyles.container]}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#007bff"
+          tintColor={colors.primary || "#007bff"}
         />
       }
     >
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+          Notifications
+        </Text>
       </View>
 
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#007bff" />
-          <Text style={styles.helperText}>Loading notifications...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+      <CustomLoader visible={loading && !refreshing} />
+
+      {error ? (
+        <View style={[styles.centered, dynamicStyles.centered]}>
+          <Text style={[styles.errorText, dynamicStyles.errorText]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.retryButton,
+              { backgroundColor: colors.primary || "#007bff" },
+            ]}
+            onPress={onRefresh}
+          >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -200,13 +236,20 @@ const NotificationScreen = ({
               key={notif?.name}
               style={[
                 styles.card,
-                !isRead && { borderColor: "#007bff", borderWidth: 1 },
+                dynamicStyles.card,
+                !isRead && {
+                  borderColor: colors.primary || "#007bff",
+                  borderWidth: 1,
+                },
               ]}
               onPress={() => toggleNotificationRead(notif)}
               activeOpacity={0.8}
             >
               <View style={styles.cardTopRow}>
-                <Text style={styles.cardTitle} numberOfLines={2}>
+                <Text
+                  style={[styles.cardTitle, dynamicStyles.cardTitle]}
+                  numberOfLines={2}
+                >
                   {titleSegments.length > 0
                     ? titleSegments.map((seg, i) => (
                         <Text key={i} style={seg.bold ? styles.boldText : null}>
@@ -218,29 +261,35 @@ const NotificationScreen = ({
                 <View
                   style={[
                     styles.badge,
-                    isRead ? styles.badgeRead : styles.badgeUnread,
+                    isRead
+                      ? dynamicStyles.badgeRead
+                      : dynamicStyles.badgeUnread,
                   ]}
                 >
-                  <Text style={styles.badgeText}>
+                  <Text style={[styles.badgeText, dynamicStyles.badgeText]}>
                     {isRead ? "Read" : "Unread"}
                   </Text>
                 </View>
               </View>
-              <Text style={styles.cardMeta}>
+              <Text style={[styles.cardMeta, dynamicStyles.cardMeta]}>
                 {(notif?.document_type || "General") +
                   (created ? ` • ${created}` : "")}
               </Text>
               {userInfo?.name ? (
-                <Text style={styles.cardMeta}>User: {userInfo.name}</Text>
+                <Text style={[styles.cardMeta, dynamicStyles.cardMeta]}>
+                  User: {userInfo.name}
+                </Text>
               ) : null}
             </TouchableOpacity>
           );
         })
       ) : (
         <View style={styles.emptyState}>
-          <BellOff color="red" size={60} />
-          <Text style={styles.emptyTitle}>No New notifications</Text>
-          <Text style={styles.emptySubtitle}>
+          <BellOff color={colors.textSecondary || "red"} size={60} />
+          <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>
+            No New notifications
+          </Text>
+          <Text style={[styles.emptySubtitle, dynamicStyles.emptySubtitle]}>
             Looks like you haven’t received any notifications.
           </Text>
         </View>

@@ -1,22 +1,29 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   TouchableOpacity,
-  Alert,
   Button,
   Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
 import { Wallet, Plus, List as ListIcon } from "lucide-react-native";
 import { format, parseISO } from "date-fns";
 import DoctypeExpenseModal from "../Components/DoctypeExpenseModal";
 import { getCurrentUser, fetchEmployeeDetails } from "../utils/frappeApi";
+import CustomLoader from "../Components/CustomLoader";
+import Toast from "react-native-toast-message";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -27,19 +34,74 @@ const formatDate = (dateString) => {
   }
 };
 
-const statusToColorMap = {
-  Draft: { bg: "#e0f2f1", text: "#00695c" },
-  Submitted: { bg: "#fff3e0", text: "#ef6c00" },
-  Cancelled: { bg: "#ffebee", text: "#c62828" },
-  Paid: { bg: "#e8f5e9", text: "#2e7d32" },
-  Approved: { bg: "#e8f5e9", text: "#2e7d32" },
-  Rejected: { bg: "#ffebee", text: "#c62828" },
-  Unpaid: { bg: "#ffebee", text: "#c62828" },
-  Pending: { bg: "#fff3e0", text: "#ef6c00" },
-};
-
 const ExpenseClaimScreen = ({ currentEmployeeId }) => {
+  const { colors, theme } = useTheme();
   const isMountedRef = useRef(true);
+
+  const getStatusColors = (status) => {
+    const isDark = theme === "dark";
+    const map = {
+      Draft: {
+        bg: isDark ? "#1a3d3d" : "#e0f2f1",
+        text: isDark ? "#80cbc4" : "#00695c",
+      },
+      Submitted: {
+        bg: isDark ? "#4e342e" : "#fff3e0",
+        text: isDark ? "#ffcc80" : "#ef6c00",
+      },
+      Cancelled: {
+        bg: isDark ? "#3e2723" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Paid: {
+        bg: isDark ? "#1b5e20" : "#e8f5e9",
+        text: isDark ? "#a5d6a7" : "#2e7d32",
+      },
+      Approved: {
+        bg: isDark ? "#1b5e20" : "#e8f5e9",
+        text: isDark ? "#a5d6a7" : "#2e7d32",
+      },
+      Rejected: {
+        bg: isDark ? "#3e2723" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Unpaid: {
+        bg: isDark ? "#3e2723" : "#ffebee",
+        text: isDark ? "#ef9a9a" : "#c62828",
+      },
+      Pending: {
+        bg: isDark ? "#4e342e" : "#fff3e0",
+        text: isDark ? "#ffcc80" : "#ef6c00",
+      },
+    };
+    return map[status] || { bg: colors.card, text: colors.text };
+  };
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      centered: { backgroundColor: colors.background },
+      text: { color: colors.text },
+      textSecondary: { color: colors.textSecondary },
+      card: { backgroundColor: colors.card, borderColor: colors.border },
+      viewToggles: { backgroundColor: colors.card, borderColor: colors.border },
+      tabButtonText: { color: colors.textSecondary },
+      filterContainer: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      filterLabel: { color: colors.textSecondary },
+      selectedBadge: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      selectedBadgeText: { color: colors.text },
+      listHeaderBar: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      listHeaderTitle: { color: colors.text },
+      loadingText: { color: colors.textSecondary },
+      emptyText: { color: colors.textSecondary },
+      picker: { color: colors.text, backgroundColor: colors.card },
+    }),
+    [colors, theme],
+  );
+
   const [myClaims, setMyClaims] = useState([]);
   const [claimsToApprove, setClaimsToApprove] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -150,6 +212,11 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
         console.error("Error fetching expense claims:", err);
         if (isMountedRef.current) {
           setError("Failed to load expense claims.");
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Failed to load expense claims.",
+          });
         }
       } finally {
         if (isMountedRef.current) {
@@ -173,20 +240,21 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   };
 
   const handleItemPress = (item) => {
-    Alert.alert(
-      "Claim Details",
-      `ID: ${item.name}\nAmount: ₹ ${item.total_claimed_amount}\nStatus: ${item.approval_status}`,
-    );
+    Toast.show({
+      type: "info",
+      text1: "Claim Details",
+      text2: `ID: ${item.name} | Amount: ₹ ${item.total_claimed_amount} | Status: ${item.approval_status}`,
+      visibilityTime: 4000,
+    });
   };
 
   const renderItem = ({ item }) => {
     const status = item.approval_status || "Draft";
-    const statusColor = statusToColorMap[status]?.bg || "#f0f2f5";
-    const statusTextColor = statusToColorMap[status]?.text || "#333";
+    const { bg: statusColor, text: statusTextColor } = getStatusColors(status);
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, dynamicStyles.card]}
         onPress={() => handleItemPress(item)}
       >
         <View style={styles.cardRow}>
@@ -194,11 +262,13 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
             <Wallet size={20} color="#555" />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.employeeName}>
+            <Text style={[styles.employeeName, dynamicStyles.text]}>
               {activeTab === "approvals" ? item.employee_name : item.name}
             </Text>
-            <Text style={styles.dateText}>{formatDate(item.posting_date)}</Text>
-            <Text style={styles.amountText}>
+            <Text style={[styles.dateText, dynamicStyles.textSecondary]}>
+              {formatDate(item.posting_date)}
+            </Text>
+            <Text style={[styles.amountText, dynamicStyles.text]}>
               ₹ {parseFloat(item.total_claimed_amount || 0).toFixed(2)}
             </Text>
           </View>
@@ -215,7 +285,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.toolbar}>
-        <View style={styles.viewToggles}>
+        <View style={[styles.viewToggles, dynamicStyles.viewToggles]}>
           <TouchableOpacity
             style={[
               styles.tabButton,
@@ -226,6 +296,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
             <Text
               style={[
                 styles.tabButtonText,
+                dynamicStyles.tabButtonText,
                 activeTab === "my_claims" && styles.activeTabButtonText,
               ]}
             >
@@ -244,40 +315,56 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
       </View>
 
       {activeTab === "my_claims" && (
-        <View style={styles.filterContainer}>
-          <Text style={styles.filterLabel}>Filter:</Text>
-          <View style={styles.selectedBadge}>
-            <Text style={styles.selectedBadgeText}>{statusFilter}</Text>
+        <View style={[styles.filterContainer, dynamicStyles.filterContainer]}>
+          <Text style={[styles.filterLabel, dynamicStyles.filterLabel]}>
+            Filter:
+          </Text>
+          <View style={[styles.selectedBadge, dynamicStyles.selectedBadge]}>
+            <Text
+              style={[
+                styles.selectedBadgeText,
+                dynamicStyles.selectedBadgeText,
+              ]}
+            >
+              {statusFilter}
+            </Text>
           </View>
           <View style={styles.pickerWrapper}>
             <Picker
               selectedValue={statusFilter}
               onValueChange={setStatusFilter}
-              style={styles.picker}
+              style={[styles.picker, dynamicStyles.picker]}
               mode="dropdown"
-              dropdownIconColor="#271085"
+              dropdownIconColor={colors.text}
               prompt="Status"
             >
-              <Picker.Item label="All" value="All" style={styles.pickerItem} />
+              <Picker.Item
+                label="All"
+                value="All"
+                style={{ backgroundColor: colors.card, color: colors.text }}
+                color={colors.text}
+              />
               <Picker.Item
                 label="Draft"
                 value="Draft"
-                style={styles.pickerItem}
+                style={{ backgroundColor: colors.card, color: colors.text }}
+                color={colors.text}
               />
               <Picker.Item
                 label="Submitted"
                 value="Submitted"
-                style={styles.pickerItem}
+                style={{ backgroundColor: colors.card, color: colors.text }}
+                color={colors.text}
               />
             </Picker>
           </View>
         </View>
       )}
 
-      <View style={styles.listHeaderBar}>
+      <View style={[styles.listHeaderBar, dynamicStyles.listHeaderBar]}>
         <View style={styles.listHeaderLeft}>
           <ListIcon size={18} color="orange" />
-          <Text style={styles.listHeaderTitle}>
+          <Text style={[styles.listHeaderTitle, dynamicStyles.listHeaderTitle]}>
             {activeTab === "my_claims" ? "My Claims List" : "Pending Approvals"}
           </Text>
         </View>
@@ -294,44 +381,34 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
 
   const activeData = activeTab === "my_claims" ? myClaims : claimsToApprove;
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading expense claims...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button title="Retry" onPress={() => fetchClaims()} color="#007bff" />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={activeData}
-        keyExtractor={(item) => item.name}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={renderHeader}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {activeTab === "my_claims"
-                ? "No expense claims found."
-                : "No pending approvals."}
-            </Text>
-          </View>
-        }
-      />
+    <View style={[styles.container, dynamicStyles.container]}>
+      <CustomLoader visible={loading && !refreshing} />
+      {renderHeader()}
+      {error ? (
+        <View style={[styles.centered, dynamicStyles.centered]}>
+          <Text style={[styles.errorText, dynamicStyles.text]}>{error}</Text>
+          <Button title="Retry" onPress={() => fetchClaims()} color="#007bff" />
+        </View>
+      ) : (
+        <FlatList
+          data={activeData}
+          keyExtractor={(item) => item.name}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
+                {activeTab === "my_claims"
+                  ? "No expense claims found."
+                  : "No pending approvals."}
+              </Text>
+            </View>
+          }
+        />
+      )}
       <DoctypeExpenseModal
         visible={showNewModal}
         onClose={() => setShowNewModal(false)}

@@ -9,7 +9,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Button,
   TouchableOpacity,
@@ -18,6 +17,10 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import { MaterialIcons } from "@expo/vector-icons";
 import { getResourceList, getResource } from "../utils/frappeApi";
+import { useTheme } from "../context/ThemeContext";
+import CustomLoader from "../Components/CustomLoader";
+import Toast from "react-native-toast-message";
+import { useFocusEffect } from "@react-navigation/native";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -30,6 +33,7 @@ const formatDate = (dateString) => {
 };
 
 const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
+  const { colors, theme } = useTheme();
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,6 +42,44 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const { width } = useWindowDimensions();
   const isSmall = width < 400;
   const isMountedRef = useRef(true);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      centered: { backgroundColor: colors.background },
+      loadingText: { color: colors.textSecondary },
+      subSectionTitle: {
+        color: colors.textSecondary,
+        borderBottomColor: colors.border,
+      },
+      table: { borderColor: colors.border },
+      tableHeader: { backgroundColor: theme === "dark" ? "#333" : "#007bff" },
+      colDate: { color: colors.text },
+      tableCol: { color: colors.text },
+      tableRow: {
+        backgroundColor: colors.card,
+        borderBottomColor: colors.border,
+      },
+      weeklyType: { color: "#388e3c" },
+      publicType: { color: "#1976d2" },
+      noDataText: {
+        color: colors.textSecondary,
+        backgroundColor: colors.card,
+      },
+      sectionTitle: { color: colors.text },
+      navButton: { backgroundColor: theme === "dark" ? "#333" : "#e3f2fd" },
+      filterLabel: { color: colors.text },
+      holidayTypeSelect: {
+        backgroundColor: colors.card,
+        color: colors.text,
+      },
+      pickerItem: {
+        color: colors.text,
+        backgroundColor: colors.card,
+      },
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     return () => {
@@ -88,6 +130,11 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
       console.error(err);
       if (isMountedRef.current) {
         setError("Failed to load holidays.");
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to load holidays.",
+        });
       }
     } finally {
       if (isMountedRef.current) {
@@ -130,24 +177,59 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
 
   const renderList = (data, title) => (
     <View style={styles.holidaysSubSection}>
-      <Text style={styles.subSectionTitle}>{title}</Text>
+      <Text style={[styles.subSectionTitle, dynamicStyles.subSectionTitle]}>
+        {title}
+      </Text>
 
       {data.length > 0 ? (
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableCol, styles.colDate]}>Date</Text>
-            <Text style={[styles.tableCol, styles.colDescription]}>
+        <View style={[styles.table, dynamicStyles.table]}>
+          <View style={[styles.tableHeader, dynamicStyles.tableHeader]}>
+            <Text
+              style={[
+                styles.tableCol,
+                styles.colDate,
+                dynamicStyles.colDate,
+                { color: "#fff" },
+              ]}
+            >
+              Date
+            </Text>
+            <Text
+              style={[
+                styles.tableCol,
+                styles.colDescription,
+                dynamicStyles.tableCol,
+                { color: "#fff" },
+              ]}
+            >
               Description
             </Text>
-            <Text style={[styles.tableCol, styles.colType]}>Type</Text>
+            <Text
+              style={[
+                styles.tableCol,
+                styles.colType,
+                dynamicStyles.tableCol,
+                { color: "#fff" },
+              ]}
+            >
+              Type
+            </Text>
           </View>
 
           {data.map((h) => (
-            <View key={h.id} style={styles.tableRow}>
-              <Text style={[styles.tableCol, styles.colDate]}>
+            <View key={h.id} style={[styles.tableRow, dynamicStyles.tableRow]}>
+              <Text
+                style={[styles.tableCol, styles.colDate, dynamicStyles.colDate]}
+              >
                 {formatDate(h.holiday_date)}
               </Text>
-              <Text style={[styles.tableCol, styles.colDescription]}>
+              <Text
+                style={[
+                  styles.tableCol,
+                  styles.colDescription,
+                  dynamicStyles.tableCol,
+                ]}
+              >
                 {h.description || "—"}
               </Text>
               <Text
@@ -155,6 +237,9 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
                   styles.tableCol,
                   styles.colType,
                   h.weekly_off ? styles.weeklyType : styles.publicType,
+                  h.weekly_off
+                    ? dynamicStyles.weeklyType
+                    : dynamicStyles.publicType,
                 ]}
               >
                 {h.weekly_off ? "Weekly Off" : "Public Holiday"}
@@ -163,7 +248,7 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
           ))}
         </View>
       ) : (
-        <Text style={styles.noDataText}>
+        <Text style={[styles.noDataText, dynamicStyles.noDataText]}>
           No {title.toLowerCase()} for {currentYear}.
         </Text>
       )}
@@ -172,16 +257,16 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading holidays...</Text>
-      </View>
+      <>
+        <CustomLoader visible={loading} />
+        {/* Render structure underneath to avoid flicker if needed, or just loader */}
+      </>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, dynamicStyles.centered]}>
         <Text style={styles.errorText}>{error}</Text>
         <Button title="Retry" onPress={fetchHolidays} />
       </View>
@@ -190,37 +275,66 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, dynamicStyles.container]}
       contentContainerStyle={styles.contentContainer}
     >
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Holidays ({currentYear})</Text>
+        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+          Holidays ({currentYear})
+        </Text>
         <View style={styles.navigationButtons}>
           <TouchableOpacity
             onPress={() => handleYearChange(-1)}
-            style={styles.navButton}
+            style={[styles.navButton, dynamicStyles.navButton]}
           >
-            <MaterialIcons name="chevron-left" size={24} color="#007bff" />
+            <MaterialIcons
+              name="chevron-left"
+              size={24}
+              color={colors.primary}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleYearChange(1)}
-            style={styles.navButton}
+            style={[styles.navButton, dynamicStyles.navButton]}
           >
-            <MaterialIcons name="chevron-right" size={24} color="#007bff" />
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={colors.primary}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.holidayFilterControls}>
-        <Text style={styles.filterLabel}>Filter:</Text>
+        <Text style={[styles.filterLabel, dynamicStyles.filterLabel]}>
+          Filter:
+        </Text>
         <Picker
           selectedValue={holidayTypeFilter}
           onValueChange={setHolidayTypeFilter}
-          style={[styles.holidayTypeSelect, isSmall && { width: 180 }]}
+          style={[
+            styles.holidayTypeSelect,
+            isSmall && { width: 180 },
+            dynamicStyles.holidayTypeSelect,
+          ]}
+          dropdownIconColor={colors.text}
         >
-          <Picker.Item label="All" value="All" />
-          <Picker.Item label="Public Holidays" value="Public Holiday" />
-          <Picker.Item label="Weekly Offs" value="Weekly Off" />
+          <Picker.Item
+            label="All"
+            value="All"
+            style={dynamicStyles.pickerItem}
+          />
+          <Picker.Item
+            label="Public Holidays"
+            value="Public Holiday"
+            style={dynamicStyles.pickerItem}
+          />
+          <Picker.Item
+            label="Weekly Offs"
+            value="Weekly Off"
+            style={dynamicStyles.pickerItem}
+          />
         </Picker>
       </View>
 

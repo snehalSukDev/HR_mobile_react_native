@@ -9,15 +9,17 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   TouchableOpacity,
   useWindowDimensions,
   RefreshControl,
-  Alert,
+  Modal,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import Toast from "react-native-toast-message";
+import CustomLoader from "../Components/CustomLoader";
 import { getResourceList, getResource } from "../utils/frappeApi";
+import { useTheme } from "../context/ThemeContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 // Helper function to format dates
@@ -57,7 +59,31 @@ const ShiftDetailsScreen = ({
   currentEmployeeId,
   onLogout,
 }) => {
+  const { colors, theme } = useTheme();
   const isMountedRef = useRef(true);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      centered: { backgroundColor: colors.background },
+      loadingText: { color: colors.textSecondary },
+      errorText: { color: colors.error || "#dc3545" },
+      title: { color: colors.text },
+      navButton: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      tableContainer: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      headerRow: { backgroundColor: theme === "dark" ? "#333" : "#f0f0f0" },
+      cellHeader: { color: colors.text },
+      cell: { color: colors.text },
+      weekendRow: { backgroundColor: theme === "dark" ? "#442222" : "#fdecea" },
+      emptyContainer: { backgroundColor: colors.card },
+      emptyText: { color: colors.textSecondary },
+    }),
+    [colors, theme],
+  );
+
   const [shiftData, setShiftData] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loading, setLoading] = useState(true);
@@ -209,10 +235,12 @@ const ShiftDetailsScreen = ({
       } catch (err) {
         console.error("Shift fetch error:", err);
         if (isMountedRef.current) {
-          Alert.alert(
-            "Error",
-            "Failed to load shift data. Please check your internet connection or try again later.",
-          );
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2:
+              "Failed to load shift data. Please check your internet connection.",
+          });
           setError("Failed to fetch shift data.");
         }
       } finally {
@@ -246,14 +274,39 @@ const ShiftDetailsScreen = ({
   };
 
   const renderHeader = () => (
-    <View style={[styles.row, styles.headerRow, styles.roundedTop]}>
-      <Text style={[styles.cellHeader, { flex: 2 }]}>Date</Text>
-      <Text style={[styles.cellHeader, { flex: 1 }]}>Day</Text>
-      <Text style={[styles.cellHeader, { flex: 2 }]}>Shift</Text>
-      <Text style={[styles.cellHeader, { flex: 2, textAlign: "center" }]}>
+    <View
+      style={[
+        styles.row,
+        styles.headerRow,
+        dynamicStyles.headerRow,
+        styles.roundedTop,
+      ]}
+    >
+      <Text style={[styles.cellHeader, dynamicStyles.cellHeader, { flex: 2 }]}>
+        Date
+      </Text>
+      <Text style={[styles.cellHeader, dynamicStyles.cellHeader, { flex: 1 }]}>
+        Day
+      </Text>
+      <Text style={[styles.cellHeader, dynamicStyles.cellHeader, { flex: 2 }]}>
+        Shift
+      </Text>
+      <Text
+        style={[
+          styles.cellHeader,
+          dynamicStyles.cellHeader,
+          { flex: 2, textAlign: "center" },
+        ]}
+      >
         Start
       </Text>
-      <Text style={[styles.cellHeader, { flex: 2, textAlign: "center" }]}>
+      <Text
+        style={[
+          styles.cellHeader,
+          dynamicStyles.cellHeader,
+          { flex: 2, textAlign: "center" },
+        ]}
+      >
         End
       </Text>
     </View>
@@ -264,20 +317,39 @@ const ShiftDetailsScreen = ({
     const isWeekend = [0, 6].includes(date.getDay());
 
     return (
-      <View style={[styles.row, isWeekend && styles.weekendRow]}>
-        <Text style={[styles.cell, { flex: 2 }]}>
+      <View
+        style={[
+          styles.row,
+          isWeekend && styles.weekendRow,
+          isWeekend && dynamicStyles.weekendRow,
+          { borderBottomColor: colors.border },
+        ]}
+      >
+        <Text style={[styles.cell, dynamicStyles.cell, { flex: 2 }]}>
           {formatDate(item.shift_date, "short")}
         </Text>
-        <Text style={[styles.cell, { flex: 1 }]}>
+        <Text style={[styles.cell, dynamicStyles.cell, { flex: 1 }]}>
           {date.toLocaleDateString("en-US", { weekday: "short" })}
         </Text>
-        <Text style={[styles.cell, { flex: 2 }]}>
+        <Text style={[styles.cell, dynamicStyles.cell, { flex: 2 }]}>
           {item.shift_type || "N/A"}
         </Text>
-        <Text style={[styles.cell, { flex: 2, textAlign: "center" }]}>
+        <Text
+          style={[
+            styles.cell,
+            dynamicStyles.cell,
+            { flex: 2, textAlign: "center" },
+          ]}
+        >
           {formatTime(item.start_time)}
         </Text>
-        <Text style={[styles.cell, { flex: 2, textAlign: "center" }]}>
+        <Text
+          style={[
+            styles.cell,
+            dynamicStyles.cell,
+            { flex: 2, textAlign: "center" },
+          ]}
+        >
           {formatTime(item.end_time)}
         </Text>
       </View>
@@ -286,9 +358,13 @@ const ShiftDetailsScreen = ({
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <MaterialIcons name="error-outline" size={50} color="#dc3545" />
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={[styles.centered, dynamicStyles.centered]}>
+        <MaterialIcons
+          name="error-outline"
+          size={50}
+          color={colors.error || "#dc3545"}
+        />
+        <Text style={[styles.errorText, dynamicStyles.errorText]}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchShiftData}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
@@ -297,32 +373,38 @@ const ShiftDetailsScreen = ({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Shift Roster ({monthDisplay})</Text>
+        <Text style={[styles.title, dynamicStyles.title]}>
+          Shift Roster ({monthDisplay})
+        </Text>
         <View style={styles.nav}>
           <TouchableOpacity
             onPress={() => handleMonthChange(-1)}
-            style={styles.navButton}
+            style={[styles.navButton, dynamicStyles.navButton]}
           >
-            <MaterialIcons name="chevron-left" size={28} color="#007bff" />
+            <MaterialIcons
+              name="chevron-left"
+              size={28}
+              color={theme === "dark" ? "#fff" : "#007bff"}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleMonthChange(1)}
-            style={styles.navButton}
+            style={[styles.navButton, dynamicStyles.navButton]}
           >
-            <MaterialIcons name="chevron-right" size={28} color="#007bff" />
+            <MaterialIcons
+              name="chevron-right"
+              size={28}
+              color={theme === "dark" ? "#fff" : "#007bff"}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.tableContainer}>
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#007bff" />
-            <Text style={styles.loadingText}>Loading your shift roster...</Text>
-          </View>
-        ) : (
+      <View style={[styles.tableContainer, dynamicStyles.tableContainer]}>
+        <CustomLoader visible={loading && !refreshing} />
+        {!loading && (
           <FlatList
             data={shiftData}
             keyExtractor={(item) => item.id}
@@ -334,13 +416,19 @@ const ShiftDetailsScreen = ({
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor="#007bff"
+                tintColor={theme === "dark" ? "#fff" : "#007bff"}
               />
             }
             ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
-                <MaterialIcons name="calendar-today" size={50} color="#aaa" />
-                <Text style={styles.emptyText}>
+              <View
+                style={[styles.emptyContainer, dynamicStyles.emptyContainer]}
+              >
+                <MaterialIcons
+                  name="calendar-today"
+                  size={50}
+                  color={colors.textSecondary}
+                />
+                <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
                   No shifts assigned for this month.
                 </Text>
               </View>

@@ -7,10 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
-  ToastAndroid,
   KeyboardAvoidingView,
-  Alert,
-  ActivityIndicator,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -23,9 +20,12 @@ import {
 } from "../utils/frappeApi";
 import { Formik, useFormikContext } from "formik";
 import { format } from "date-fns";
+import Toast from "react-native-toast-message";
 
 import GenericField from "./FormComponents/GenericField";
 import LinkField from "./FormComponents/LinkField";
+import { useTheme } from "../context/ThemeContext";
+import CustomLoader from "./CustomLoader";
 
 const DoctypeFormFields = React.memo(
   ({
@@ -38,8 +38,21 @@ const DoctypeFormFields = React.memo(
     doctype,
     onClose,
   }) => {
+    const { colors, theme } = useTheme();
     const { values, setFieldValue, handleSubmit, isSubmitting } =
       useFormikContext();
+
+    const dynamicStyles = useMemo(
+      () => ({
+        noDataText: { color: colors.textSecondary },
+        modalBody: { backgroundColor: colors.background },
+        modalFooter: {
+          borderTopColor: colors.border,
+          backgroundColor: colors.card,
+        },
+      }),
+      [colors, theme],
+    );
 
     const handleFieldChange = React.useCallback(
       (fieldname, val) => {
@@ -73,14 +86,20 @@ const DoctypeFormFields = React.memo(
     return (
       <>
         <ScrollView
-          style={styles.modalBody}
+          style={[styles.modalBody, dynamicStyles.modalBody]}
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
         >
           {fields.length === 0 ? (
             <View style={styles.noDataContainer}>
-              <MaterialIcons name="info-outline" size={24} color="#666" />
-              <Text style={styles.noDataText}>No fields available.</Text>
+              <MaterialIcons
+                name="info-outline"
+                size={24}
+                color={colors.textSecondary}
+              />
+              <Text style={[styles.noDataText, dynamicStyles.noDataText]}>
+                No fields available.
+              </Text>
             </View>
           ) : (
             fields.map((f) => {
@@ -114,7 +133,7 @@ const DoctypeFormFields = React.memo(
             })
           )}
         </ScrollView>
-        <View style={styles.modalFooter}>
+        <View style={[styles.modalFooter, dynamicStyles.modalFooter]}>
           <TouchableOpacity
             style={[styles.footerButton, { backgroundColor: "#6c757d" }]}
             onPress={onClose}
@@ -122,7 +141,7 @@ const DoctypeFormFields = React.memo(
             <Text style={styles.footerButtonText}>Close</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.footerButton, { backgroundColor: "#007bff" }]}
+            style={[styles.footerButton, { backgroundColor: colors.primary }]}
             onPress={handleSubmit}
             disabled={isSubmitting}
           >
@@ -144,8 +163,10 @@ const DoctypeFormModal = ({
   onSuccess,
   hiddenFields = [],
 }) => {
+  const { colors, theme } = useTheme();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [invalidFields, setInvalidFields] = useState({});
   const [employeeDetails, setEmployeeDetails] = useState(null);
 
@@ -153,6 +174,20 @@ const DoctypeFormModal = ({
   const positionsRef = useRef({});
   const isMountedRef = useRef(true);
   const metaCacheRef = useRef({});
+
+  const dynamicStyles = useMemo(
+    () => ({
+      modalContainer: { backgroundColor: colors.background },
+      modalHeader: {
+        borderBottomColor: colors.border,
+        backgroundColor: colors.card,
+      },
+      modalTitle: { color: colors.text },
+      loader: { color: colors.primary },
+      closeIcon: { color: colors.text },
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -231,7 +266,11 @@ const DoctypeFormModal = ({
       } catch (err) {
         console.error("Error loading meta:", err);
         if (isMountedRef.current) {
-          Alert.alert("Error", "Failed to load form definition");
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Failed to load form definition",
+          });
           onClose();
         }
       } finally {
@@ -270,23 +309,27 @@ const DoctypeFormModal = ({
       <View style={styles.modalBackdrop}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.modalContainer}
+          style={[styles.modalContainer, dynamicStyles.modalContainer]}
         >
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title || doctype}</Text>
+          <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+              {title || doctype}
+            </Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialIcons name="close" size={22} color="#333" />
+              <MaterialIcons
+                name="close"
+                size={22}
+                color={dynamicStyles.closeIcon.color}
+              />
             </TouchableOpacity>
           </View>
-          {loading ? (
-            <View style={styles.loaderContainer}>
-              <ActivityIndicator size="large" color="#007bff" />
-            </View>
-          ) : (
+          <CustomLoader visible={loading || isSaving} />
+          {!loading && (
             <Formik
               initialValues={initialValues}
               enableReinitialize={true}
               onSubmit={async (values, { setSubmitting }) => {
+                setIsSaving(true);
                 const missing = [];
                 fields.forEach((f) => {
                   if (f.reqd) {
@@ -315,6 +358,7 @@ const DoctypeFormModal = ({
                     });
                   }
                   setSubmitting(false);
+                  setIsSaving(false);
                   return;
                 } else {
                   setInvalidFields({});
@@ -346,12 +390,14 @@ const DoctypeFormModal = ({
                     if (!isMountedRef.current) return;
                   }
 
-                  Alert.alert(
-                    "Success",
-                    doctype === "Attendance Request"
-                      ? `${doctype} submitted successfully`
-                      : `${doctype} saved successfully`,
-                  );
+                  Toast.show({
+                    type: "success",
+                    text1: "Success",
+                    text2:
+                      doctype === "Attendance Request"
+                        ? `${doctype} submitted successfully`
+                        : `${doctype} saved successfully`,
+                  });
                   if (typeof onSuccess === "function") {
                     onSuccess({ saved, tempDoc: doc, doctype });
                   }
@@ -361,13 +407,14 @@ const DoctypeFormModal = ({
                     (err && err.serverMessagesText) ||
                     err.message ||
                     String(err);
-                  if (Platform.OS === "android") {
-                    ToastAndroid.show(serverText, ToastAndroid.LONG);
-                  } else {
-                    Alert.alert("Error", serverText);
-                  }
+                  Toast.show({
+                    type: "error",
+                    text1: "Error",
+                    text2: serverText,
+                  });
                 } finally {
                   setSubmitting(false);
+                  setIsSaving(false);
                 }
               }}
             >
@@ -386,6 +433,7 @@ const DoctypeFormModal = ({
             </Formik>
           )}
         </KeyboardAvoidingView>
+        <Toast />
       </View>
     </Modal>
   );

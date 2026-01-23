@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
   AppState,
   Modal,
   ScrollView,
@@ -11,12 +9,15 @@ import {
   View,
   Image,
 } from "react-native";
-import { Menu, Bell } from "lucide-react-native";
+import { Menu, Bell, Sun, Moon } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { callFrappeMethod, fetchEmployeeDetails } from "../utils/frappeApi";
 import ProfileAvatar from "../Components/ProfileAvatar";
+import { useTheme } from "../context/ThemeContext";
+import CustomLoader from "../Components/CustomLoader";
+import Toast from "react-native-toast-message";
 
 function cleanHtmlText(input) {
   try {
@@ -84,6 +85,7 @@ function SegmentedText({ raw, style, numberOfLines }) {
 
 function NotificationBell({ onLogout, currentUserEmail }) {
   const navigation = useNavigation();
+  const { theme, toggleTheme, colors } = useTheme();
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -91,6 +93,28 @@ function NotificationBell({ onLogout, currentUserEmail }) {
   const [selected, setSelected] = useState(null);
   const [userInfo, setUserInfo] = useState(null);
   const [employeeProfile, setEmployeeProfile] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      modalCard: { backgroundColor: colors.card },
+      modalHeader: { borderBottomColor: colors.border },
+      modalTitle: { color: colors.text },
+      notifCard: {
+        backgroundColor: theme === "dark" ? "#1e1e1e" : "#f8f9fb",
+      },
+      notifTitle: { color: colors.text },
+      notifMeta: { color: colors.textSecondary },
+      notifPreview: { color: colors.textSecondary },
+      emptyTitle: { color: colors.text },
+      emptySubtitle: { color: colors.textSecondary },
+      detailTitle: { color: colors.text },
+      detailMeta: { color: colors.textSecondary },
+      detailBody: { color: colors.text },
+      iconColor: colors.text,
+    }),
+    [colors, theme],
+  );
 
   const generalNotifications = useMemo(
     () => (notify || []).filter((item) => item?.document_type !== "Event"),
@@ -175,21 +199,31 @@ function NotificationBell({ onLogout, currentUserEmail }) {
   const title = selected ? "Notification" : "Notifications";
 
   const handleLogoutPress = () => {
-    if (typeof onLogout === "function") {
-      Alert.alert("Logout", "Are you sure you want to log out?", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Logout", onPress: onLogout, style: "destructive" },
-      ]);
-    } else {
-      Alert.alert("Logout", "Logout action is not available in this context.");
-    }
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    if (onLogout) onLogout();
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   return (
     <>
+      <TouchableOpacity onPress={toggleTheme} style={{ marginRight: 20 }}>
+        {theme === "light" ? (
+          <Moon size={24} color={colors.text} />
+        ) : (
+          <Sun size={24} color={colors.text} />
+        )}
+      </TouchableOpacity>
+
       <TouchableOpacity onPress={open} style={{ marginRight: 20 }}>
         <View style={styles.bellWrap}>
-          <Bell size={24} color="#000" />
+          <Bell size={24} color={colors.text} />
           {hasUnread ? <View style={styles.badgeDot} /> : null}
         </View>
       </TouchableOpacity>
@@ -227,32 +261,37 @@ function NotificationBell({ onLogout, currentUserEmail }) {
         onRequestClose={close}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
+          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
               {selected ? (
                 <TouchableOpacity
                   onPress={() => setSelected(null)}
                   style={styles.iconButton}
                 >
-                  <MaterialIcons name="arrow-back" size={22} color="#111" />
+                  <MaterialIcons
+                    name="arrow-back"
+                    size={22}
+                    color={dynamicStyles.iconColor}
+                  />
                 </TouchableOpacity>
               ) : (
                 <View style={styles.iconButtonPlaceholder} />
               )}
 
-              <Text style={styles.modalTitle}>{title}</Text>
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                {title}
+              </Text>
 
               <TouchableOpacity onPress={close} style={styles.iconButton}>
-                <MaterialIcons name="close" size={22} color="#111" />
+                <MaterialIcons
+                  name="close"
+                  size={22}
+                  color={dynamicStyles.iconColor}
+                />
               </TouchableOpacity>
             </View>
 
-            {loading ? (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#007bff" />
-                <Text style={styles.helperText}>Loading notifications...</Text>
-              </View>
-            ) : error ? (
+            {error ? (
               <View style={styles.centered}>
                 <Text style={styles.errorText}>{error}</Text>
                 <TouchableOpacity
@@ -265,7 +304,7 @@ function NotificationBell({ onLogout, currentUserEmail }) {
             ) : selected ? (
               <ScrollView style={styles.modalBody}>
                 <SegmentedText
-                  style={styles.detailTitle}
+                  style={[styles.detailTitle, dynamicStyles.detailTitle]}
                   raw={
                     selected?.subject ||
                     selected?.document_name ||
@@ -273,12 +312,12 @@ function NotificationBell({ onLogout, currentUserEmail }) {
                   }
                 />
                 {selected?.creation ? (
-                  <Text style={styles.detailMeta}>
+                  <Text style={[styles.detailMeta, dynamicStyles.detailMeta]}>
                     {new Date(selected.creation).toLocaleString()}
                   </Text>
                 ) : null}
                 <SegmentedText
-                  style={styles.detailBody}
+                  style={[styles.detailBody, dynamicStyles.detailBody]}
                   raw={
                     selected?.email_content ||
                     selected?.message ||
@@ -309,12 +348,16 @@ function NotificationBell({ onLogout, currentUserEmail }) {
                         key={notif?.name}
                         style={[
                           styles.notifCard,
+                          dynamicStyles.notifCard,
                           !isRead && { borderColor: "#007bff", borderWidth: 1 },
                         ]}
                       >
                         <View style={styles.notifTopRow}>
                           <SegmentedText
-                            style={styles.notifTitle}
+                            style={[
+                              styles.notifTitle,
+                              dynamicStyles.notifTitle,
+                            ]}
                             numberOfLines={2}
                             raw={titleText}
                           />
@@ -332,12 +375,20 @@ function NotificationBell({ onLogout, currentUserEmail }) {
                           </View>
                         </View>
                         {notif?.creation ? (
-                          <Text style={styles.notifMeta}>
+                          <Text
+                            style={[styles.notifMeta, dynamicStyles.notifMeta]}
+                          >
                             {new Date(notif.creation).toLocaleString()}
                           </Text>
                         ) : null}
                         {preview ? (
-                          <Text style={styles.notifPreview} numberOfLines={2}>
+                          <Text
+                            style={[
+                              styles.notifPreview,
+                              dynamicStyles.notifPreview,
+                            ]}
+                            numberOfLines={2}
+                          >
                             {cleanHtmlText(preview)}
                           </Text>
                         ) : null}
@@ -358,14 +409,99 @@ function NotificationBell({ onLogout, currentUserEmail }) {
                       size={56}
                       color="#dc3545"
                     />
-                    <Text style={styles.emptyTitle}>No New notifications</Text>
-                    <Text style={styles.emptySubtitle}>
+                    <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>
+                      No New notifications
+                    </Text>
+                    <Text
+                      style={[
+                        styles.emptySubtitle,
+                        dynamicStyles.emptySubtitle,
+                      ]}
+                    >
                       Looks like you haven’t received any notifications.
                     </Text>
                   </View>
                 )}
               </ScrollView>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showLogoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelLogout}
+      >
+        <View
+          style={[
+            styles.modalBackdrop,
+            { justifyContent: "center", alignItems: "center" },
+          ]}
+        >
+          <View
+            style={{
+              width: "85%",
+              backgroundColor: colors.card,
+              borderRadius: 12,
+              padding: 20,
+              elevation: 5,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                marginBottom: 10,
+                color: colors.text,
+              }}
+            >
+              Logout
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                marginBottom: 20,
+                color: colors.textSecondary,
+              }}
+            >
+              Are you sure you want to log out?
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                gap: 10,
+              }}
+            >
+              <TouchableOpacity
+                onPress={cancelLogout}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  backgroundColor: theme === "dark" ? "#333" : "#e0e0e0",
+                }}
+              >
+                <Text style={{ color: colors.text, fontWeight: "600" }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmLogout}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  backgroundColor: "#dc3545",
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>Logout</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -377,8 +513,20 @@ export const createSharedOptions = (onLogout, currentUserEmail) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const logo = require("../assests/techbirdicon.png");
+  const { colors, theme } = useTheme();
 
   return {
+    headerStyle: {
+      backgroundColor: colors.card,
+      shadowColor: "transparent",
+      elevation: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTintColor: colors.text,
+    headerTitleStyle: {
+      color: colors.text,
+    },
     headerLeft: () => (
       <View style={styles.headerLeftRow}>
         <Image source={logo} style={styles.logo} resizeMode="contain" />
@@ -395,9 +543,11 @@ export const createSharedOptions = (onLogout, currentUserEmail) => {
       />
     ),
     tabBarShowLabel: true,
-    tabBarActiveTintColor: "#007bff",
-    tabBarInactiveTintColor: "gray",
+    tabBarActiveTintColor: colors.primary,
+    tabBarInactiveTintColor: colors.textSecondary,
     tabBarStyle: {
+      backgroundColor: colors.card,
+      borderTopColor: colors.border,
       height: 60 + insets.bottom,
       paddingBottom: insets.bottom,
       paddingTop: 6,

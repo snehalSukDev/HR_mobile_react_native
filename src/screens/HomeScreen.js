@@ -9,10 +9,8 @@ import {
   ScrollView,
   Button,
   TextInput,
-  ActivityIndicator,
   Animated,
   PanResponder,
-  Alert,
   Linking,
   StatusBar,
   Platform,
@@ -27,6 +25,8 @@ import {
 } from "../utils/frappeApi";
 import { useFocusEffect } from "@react-navigation/native";
 import { format, parseISO } from "date-fns";
+import Toast from "react-native-toast-message";
+import CustomLoader from "../Components/CustomLoader";
 import {
   Megaphone,
   CheckCircle2,
@@ -50,8 +50,32 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import ProfileAvatar from "../Components/ProfileAvatar";
 import { WebView } from "react-native-webview";
-// import MapView, { Marker } from "react-native-maps";
+import { useTheme } from "../context/ThemeContext";
+
 export default function HomeScreen({ navigation, currentUserEmail }) {
+  const { colors, theme } = useTheme();
+
+  const dynamicStyles = React.useMemo(
+    () => ({
+      safeArea: { backgroundColor: colors.background },
+      container: { backgroundColor: colors.background },
+      headerCard: {
+        backgroundColor: colors.headerCard || colors.card,
+        borderColor: colors.border,
+      },
+      headerName: { color: "#FFFFFF" },
+      headerGreeting: { color: "#E0E0E0" },
+      headerSub: { color: "#E0E0E0" },
+      sectionCard: { backgroundColor: colors.card, borderColor: colors.border },
+      sectionTitle: { color: colors.text },
+      sectionText: { color: colors.textSecondary },
+      quickTitle: { color: colors.textSecondary },
+      quickIconLabel: { color: colors.textSecondary },
+      noDataText: { color: colors.text },
+    }),
+    [colors],
+  );
+
   const isMountedRef = useRef(true);
   const [employeeProfile, setEmployeeProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -105,14 +129,22 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           action: "Save",
         });
         if (isMountedRef.current) {
-          Alert.alert("Success", `Checked ${logType}`);
+          Toast.show({
+            type: "success",
+            text1: "Success",
+            text2: `Checked ${logType}`,
+          });
           fetchCheckins();
         }
         return true;
       } catch (e) {
         if (isMountedRef.current) {
           const msg = e.serverMessagesText || e.message || "Check-in failed";
-          Alert.alert("Error", msg);
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: msg,
+          });
         }
         return false;
       } finally {
@@ -334,32 +366,29 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   }, []);
 
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#271085" />
-        <Text style={{ marginTop: 10, color: "#666" }}>Loading profile...</Text>
-      </View>
-    );
+    return <CustomLoader visible={loading} />;
   }
 
   if (!employeeProfile) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.noDataText}>No profile data available.</Text>
+        <Text style={[styles.noDataText, dynamicStyles.noDataText]}>
+          No profile data available.
+        </Text>
         <Button title="Reload" onPress={fetchProfile} color="#007bff" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, dynamicStyles.safeArea]}>
       <StatusBar
         translucent
-        backgroundColor="rgba(255,255,255,0.6)"
-        barStyle="dark-content"
+        backgroundColor={colors.background}
+        barStyle={theme === "dark" ? "light-content" : "dark-content"}
       />
-      <ScrollView style={styles.container}>
-        <View style={styles.headerCard}>
+      <ScrollView style={[styles.container, dynamicStyles.container]}>
+        <View style={[styles.headerCard, dynamicStyles.headerCard]}>
           <View style={styles.headerTop}>
             <ProfileAvatar
               imagePath={employeeProfile.image}
@@ -367,11 +396,15 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               size={60}
             />
             <View style={styles.headerTextGroup}>
-              <Text style={styles.headerGreeting}>{greeting}</Text>
-              <Text style={styles.headerName}>
+              <Text
+                style={[styles.headerGreeting, dynamicStyles.headerGreeting]}
+              >
+                {greeting}
+              </Text>
+              <Text style={[styles.headerName, dynamicStyles.headerName]}>
                 Mr. {employeeProfile.employee_name}
               </Text>
-              <Text style={styles.headerSub}>
+              <Text style={[styles.headerSub, dynamicStyles.headerSub]}>
                 Last swipe:{" "}
                 {lastLog?.time
                   ? `${format(parseISO(lastLog.time), "dd MMM yy, hh:mm a")}`
@@ -381,10 +414,16 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           </View>
 
           {/* Location card */}
-          <View style={styles.sectionCard}>
+          <View style={[styles.sectionCard, dynamicStyles.sectionCard]}>
             <View style={styles.sectionHeaderRow}>
-              <MaterialIcons name="location-on" size={18} color="#271085" />
-              <Text style={styles.sectionTitle}>My Location</Text>
+              <MaterialIcons
+                name="location-on"
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+                My Location
+              </Text>
             </View>
             <View style={styles.sectionBody}>
               {coords &&
@@ -435,7 +474,9 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
                   />
                 </View>
               ) : (
-                <Text style={styles.sectionText}>Fetching location...</Text>
+                <Text style={[styles.sectionText, dynamicStyles.sectionText]}>
+                  Fetching location...
+                </Text>
               )}
             </View>
           </View>
@@ -458,10 +499,6 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
             >
               {isPunching ? (
                 <View style={styles.slideCenter}>
-                  <ActivityIndicator
-                    size="small"
-                    color={effectivePunchedIn ? "#EA4335" : "#34A853"}
-                  />
                   <Text
                     style={[
                       styles.slideLoadingText,
@@ -534,7 +571,9 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
 
           <View style={styles.quickDividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.quickTitle}>Quick Actions</Text>
+            <Text style={[styles.quickTitle, dynamicStyles.quickTitle]}>
+              Quick Actions
+            </Text>
             <View style={styles.dividerLine} />
           </View>
           <View style={styles.quickIconRow}>
@@ -545,7 +584,11 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               <View style={styles.quickIconCircle}>
                 <Wallet2 size={22} color="#fff" />
               </View>
-              <Text style={styles.quickIconLabel}>Expense Claim</Text>
+              <Text
+                style={[styles.quickIconLabel, dynamicStyles.quickIconLabel]}
+              >
+                Expense Claim
+              </Text>
             </TouchableOpacity>
             {/* <TouchableOpacity
               style={styles.quickIconItem}
@@ -554,7 +597,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               <View style={styles.quickIconCircle}>
                 <Layers size={22} color="#fff" />
               </View>
-              <Text style={styles.quickIconLabel}>Shift Roaster</Text>
+              <Text style={[styles.quickIconLabel, dynamicStyles.quickIconLabel]}>Shift Roaster</Text>
             </TouchableOpacity> */}
             <TouchableOpacity
               style={styles.quickIconItem}
@@ -563,7 +606,11 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               <View style={styles.quickIconCircle}>
                 <Clock size={22} color="#fff" />
               </View>
-              <Text style={styles.quickIconLabel}>Attendance</Text>
+              <Text
+                style={[styles.quickIconLabel, dynamicStyles.quickIconLabel]}
+              >
+                Attendance
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickIconItem}
@@ -572,7 +619,11 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               <View style={styles.quickIconCircle}>
                 <CalendarClock size={22} color="#fff" />
               </View>
-              <Text style={styles.quickIconLabel}>Leave</Text>
+              <Text
+                style={[styles.quickIconLabel, dynamicStyles.quickIconLabel]}
+              >
+                Leave
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickIconItem}
@@ -581,56 +632,79 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
               <View style={styles.quickIconCircle}>
                 <Megaphone size={22} color="#fff" />
               </View>
-              <Text style={styles.quickIconLabel}>Announcement</Text>
+              <Text
+                style={[styles.quickIconLabel, dynamicStyles.quickIconLabel]}
+              >
+                Announcement
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, dynamicStyles.sectionCard]}>
           <View style={styles.sectionHeaderRow}>
-            <Gift size={18} color="#271085" />
-            <Text style={styles.sectionTitle}>Birthday Reminder</Text>
+            <Gift size={18} color={colors.primary} />
+            <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+              Birthday Reminder
+            </Text>
           </View>
           <View style={styles.sectionBody}>
             {events.birthdays.length > 0 ? (
               events.birthdays.map((b, i) => (
-                <Text key={i} style={styles.sectionText}>
+                <Text
+                  key={i}
+                  style={[styles.sectionText, dynamicStyles.sectionText]}
+                >
                   {typeof b === "object" ? b.employee_name : b}
                 </Text>
               ))
             ) : (
-              <Text style={styles.sectionText}>No upcoming birthdays.</Text>
+              <Text style={[styles.sectionText, dynamicStyles.sectionText]}>
+                No upcoming birthdays.
+              </Text>
             )}
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, dynamicStyles.sectionCard]}>
           <View style={styles.sectionHeaderRow}>
-            <Award size={18} color="#271085" />
-            <Text style={styles.sectionTitle}>Work Anniversaries</Text>
+            <Award size={18} color={colors.primary} />
+            <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+              Work Anniversaries
+            </Text>
           </View>
           <View style={styles.sectionBody}>
             {events.anniversaries.length > 0 ? (
               events.anniversaries.map((a, i) => (
-                <Text key={i} style={styles.sectionText}>
+                <Text
+                  key={i}
+                  style={[styles.sectionText, dynamicStyles.sectionText]}
+                >
                   {typeof a === "object" ? a.employee_name : a}
                 </Text>
               ))
             ) : (
-              <Text style={styles.sectionText}>No upcoming anniversaries.</Text>
+              <Text style={[styles.sectionText, dynamicStyles.sectionText]}>
+                No upcoming work anniversaries.
+              </Text>
             )}
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, dynamicStyles.sectionCard]}>
           <View style={styles.sectionHeaderRow}>
-            <Calendar size={18} color="#271085" />
-            <Text style={styles.sectionTitle}>Holidays</Text>
+            <Calendar size={18} color={colors.primary} />
+            <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+              Holidays
+            </Text>
           </View>
           <View style={styles.sectionBody}>
             {events.holidays.length > 0 ? (
               events.holidays.map((h, i) => (
-                <Text key={i} style={styles.sectionText}>
+                <Text
+                  key={i}
+                  style={[styles.sectionText, dynamicStyles.sectionText]}
+                >
                   {typeof h === "object"
                     ? `${h.description?.replace(/<[^>]+>/g, "").trim()} (${
                         h.holiday_date
@@ -639,7 +713,9 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
                 </Text>
               ))
             ) : (
-              <Text style={styles.sectionText}>No upcoming holidays.</Text>
+              <Text style={[styles.sectionText, dynamicStyles.sectionText]}>
+                No upcoming holidays.
+              </Text>
             )}
           </View>
         </View>

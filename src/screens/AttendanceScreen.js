@@ -9,10 +9,8 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   TouchableOpacity,
-  Alert,
   Modal,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
@@ -26,6 +24,9 @@ import {
 import { format, parseISO } from "date-fns";
 import { useFocusEffect } from "@react-navigation/native";
 import DoctypeFormModal from "../Components/DoctypeFormModal";
+import CustomLoader from "../Components/CustomLoader";
+import { useTheme } from "../context/ThemeContext";
+import Toast from "react-native-toast-message";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -36,13 +37,13 @@ const formatDate = (dateString) => {
   }
 };
 
-const statusToColorMap = {
-  Absent: { bg: "#F9C4C1", text: "#721c24", title: "Absent" },
-  "On Leave": { bg: "#EBD7F8", text: "#856404", title: "On Leave" },
-  Present: { bg: "#C9EFD0", text: "#155724", title: "Present" },
-  Holiday: { bg: "#FFF8CD", text: "#0c5460", title: "Holiday" },
-  "Work From Home": { bg: "#C1D7FF", text: "#1b1e21", title: "Work From Home" },
-};
+const ATTENDANCE_STATUSES = [
+  "Absent",
+  "On Leave",
+  "Present",
+  "Holiday",
+  "Work From Home",
+];
 
 const getMonthRange = ({ year, month }) => {
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -54,7 +55,41 @@ const getMonthRange = ({ year, month }) => {
 };
 
 const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
+  const { colors, theme } = useTheme();
   const isMountedRef = useRef(true);
+
+  const getStatusColors = (status) => {
+    const isDark = theme === "dark";
+    const map = {
+      Absent: {
+        bg: isDark ? "#7f0000" : "#F9C4C1", // Darker red for dark mode
+        text: isDark ? "#ef9a9a" : "#721c24",
+        title: "Absent",
+      },
+      "On Leave": {
+        bg: isDark ? "#4a148c" : "#EBD7F8", // Darker purple for dark mode
+        text: isDark ? "#ea80fc" : "#6a1b9a",
+        title: "On Leave",
+      },
+      Present: {
+        bg: isDark ? "#1b5e20" : "#C9EFD0", // Darker green for dark mode
+        text: isDark ? "#a5d6a7" : "#155724",
+        title: "Present",
+      },
+      Holiday: {
+        bg: isDark ? "#f57f17" : "#FFF8CD", // Darker orange/yellow for dark mode
+        text: isDark ? "#fff59d" : "#856404",
+        title: "Holiday",
+      },
+      "Work From Home": {
+        bg: isDark ? "#0d47a1" : "#C1D7FF", // Darker blue for dark mode
+        text: isDark ? "#90caf9" : "#0d47a1",
+        title: "Work From Home",
+      },
+    };
+    return map[status] || { bg: colors.card, text: colors.text, title: status };
+  };
+
   const [open, setOpen] = useState(false);
   const [recentAttendanceList, setRecentAttendanceList] = useState([]);
   const [monthAttendanceList, setMonthAttendanceList] = useState([]);
@@ -83,6 +118,41 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   );
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [loadedCalendarMonthKey, setLoadedCalendarMonthKey] = useState(null);
+
+  const dynamicStyles = useMemo(
+    () => ({
+      container: { backgroundColor: colors.background },
+      text: { color: colors.text },
+      textSecondary: { color: colors.textSecondary },
+      card: { backgroundColor: colors.card, borderColor: colors.border },
+      modalCard: { backgroundColor: colors.card, borderColor: colors.border },
+      listHeaderBar: { backgroundColor: theme === "dark" ? "#333" : "#e9ecef" },
+      listHeaderTitle: { color: colors.text },
+      viewToggles: { backgroundColor: colors.card, borderColor: colors.border },
+      calendarStyle: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      legendText: { color: colors.textSecondary },
+      modalTitle: { color: colors.text },
+      detailLabel: { color: colors.textSecondary },
+      detailValue: { color: colors.text },
+      emptyText: { color: colors.textSecondary },
+      detailRow: { borderBottomColor: colors.border },
+      modalHeader: { borderBottomColor: colors.border },
+      calendarTheme: {
+        backgroundColor: colors.card,
+        calendarBackground: colors.card,
+        textSectionTitleColor: colors.textSecondary,
+        dayTextColor: colors.text,
+        todayTextColor: colors.primary,
+        monthTextColor: colors.text,
+        arrowColor: colors.primary,
+        textDisabledColor: colors.border,
+      },
+    }),
+    [colors, theme],
+  );
 
   useEffect(() => {
     return () => {
@@ -134,7 +204,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
       } catch (error) {
         console.error("Error fetching attendance:", error);
         if (isMountedRef.current) {
-          Alert.alert("Error", "Failed to fetch attendance records.");
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Failed to fetch attendance records.",
+          });
         }
       } finally {
         if (isMountedRef.current) {
@@ -224,7 +298,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
       } catch (error) {
         console.error("Error fetching month attendance:", error);
         if (isMountedRef.current) {
-          Alert.alert("Error", "Failed to fetch monthly attendance.");
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Failed to fetch monthly attendance.",
+          });
         }
       } finally {
         if (isMountedRef.current) {
@@ -270,11 +348,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           : null;
       if (!key) return;
       const status = entry.status || "Present";
-      const colors = statusToColorMap[status] || {
-        bg: "#f0f2f5",
-        text: "#333",
-        title: status,
-      };
+      const colors = getStatusColors(status);
       marks[key] = {
         status,
         customStyles: {
@@ -291,7 +365,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
     holidays.forEach((h) => {
       const key = h?.date;
       if (!key || marks[key]) return;
-      const colors = statusToColorMap.Holiday;
+      const colors = getStatusColors("Holiday");
       marks[key] = {
         status: "Holiday",
         description: h.description || "",
@@ -332,19 +406,23 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const renderDetailRow = (label, value) => {
     if (value == null || value === "") return null;
     return (
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue}>{String(value)}</Text>
+      <View style={[styles.detailRow, dynamicStyles.detailRow]}>
+        <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+          {label}
+        </Text>
+        <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
+          {String(value)}
+        </Text>
       </View>
     );
   };
 
   const renderItem = ({ item }) => {
-    const statusColor = statusToColorMap[item.status]?.bg || "#fff3cd";
+    const { bg: statusColor } = getStatusColors(item.status);
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, dynamicStyles.card]}
         onPress={() => {
           setSelectedAttendanceDetails(item);
           setOpen(true);
@@ -355,8 +433,10 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
             <CalendarCheck size={20} color="#555" />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.employeeName}>{item.employee_name}</Text>
-            <Text style={styles.dateText}>
+            <Text style={[styles.employeeName, dynamicStyles.text]}>
+              {item.employee_name}
+            </Text>
+            <Text style={[styles.dateText, dynamicStyles.textSecondary]}>
               {formatDate(item.attendance_date)}
             </Text>
           </View>
@@ -371,7 +451,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.toolbar}>
-        <View style={styles.viewToggles}>
+        <View style={[styles.viewToggles, dynamicStyles.viewToggles]}>
           <TouchableOpacity
             style={[
               styles.iconButton,
@@ -381,7 +461,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           >
             <ListIcon
               size={20}
-              color={normalizedViewType === "list" ? "#fff" : "#333"}
+              color={normalizedViewType === "list" ? "#fff" : colors.text}
             />
           </TouchableOpacity>
           <TouchableOpacity
@@ -393,7 +473,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           >
             <CalendarIcon
               size={20}
-              color={normalizedViewType === "calendar" ? "#fff" : "#333"}
+              color={normalizedViewType === "calendar" ? "#fff" : colors.text}
             />
           </TouchableOpacity>
         </View>
@@ -410,10 +490,14 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
       </View>
 
       {normalizedViewType === "list" && (
-        <View style={styles.listHeaderBar}>
+        <View style={[styles.listHeaderBar, dynamicStyles.listHeaderBar]}>
           <View style={styles.listHeaderLeft}>
             <ListIcon size={18} color="orange" />
-            <Text style={styles.listHeaderTitle}>Attendance List</Text>
+            <Text
+              style={[styles.listHeaderTitle, dynamicStyles.listHeaderTitle]}
+            >
+              Attendance List
+            </Text>
           </View>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{recentAttendanceList.length}</Text>
@@ -423,21 +507,20 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
     </View>
   );
 
-  if (loading && !refreshing && normalizedViewType === "list") {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
+      <CustomLoader
+        visible={
+          (loading && !refreshing && normalizedViewType === "list") ||
+          (calendarLoading && !refreshing)
+        }
+      />
       {renderHeader()}
 
       {normalizedViewType === "calendar" ? (
         <>
           <Calendar
+            key={theme}
             current={calendarCurrent}
             enableSwipeMonths
             markingType="custom"
@@ -451,7 +534,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               const holiday = holidays.find((h) => h.date === key);
               const status = attendance?.status || (holiday ? "Holiday" : null);
               if (!status) return;
-              const title = statusToColorMap[status]?.title || status;
+              const { title } = getStatusColors(status);
               const desc = holiday?.description
                 ? holiday.description.replace(/<[^>]+>/g, "").trim()
                 : "";
@@ -469,29 +552,27 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
               setCalendarMonth(next);
               // rely on effect to fetch; avoids double fetch and global re-render
             }}
-            style={styles.calendarStyle}
-            theme={{
-              todayTextColor: "#007bff",
-              arrowColor: "#007bff",
-            }}
+            style={[styles.calendarStyle, dynamicStyles.calendarStyle]}
+            theme={dynamicStyles.calendarTheme}
           />
           {/* {calendarLoading && (
             <View style={{ paddingVertical: 12 }}>
-              <ActivityIndicator size="small" color="#007bff" />
             </View>
           )} */}
           <View style={styles.legendContainer}>
-            {Object.keys(statusToColorMap).map((key) => (
-              <View key={key} style={styles.legendItem}>
-                <View
-                  style={[
-                    styles.legendColorBox,
-                    { backgroundColor: statusToColorMap[key].bg },
-                  ]}
-                />
-                <Text style={styles.legendText}>{key}</Text>
-              </View>
-            ))}
+            {ATTENDANCE_STATUSES.map((key) => {
+              const { bg } = getStatusColors(key);
+              return (
+                <View key={key} style={styles.legendItem}>
+                  <View
+                    style={[styles.legendColorBox, { backgroundColor: bg }]}
+                  />
+                  <Text style={[styles.legendText, dynamicStyles.legendText]}>
+                    {key}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
           <Modal
             visible={dayModalVisible}
@@ -500,9 +581,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
             onRequestClose={() => setDayModalVisible(false)}
           >
             <View style={styles.modalBackdrop}>
-              <View style={styles.modalCard}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Day Details</Text>
+              <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+                <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+                  <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                    Day Details
+                  </Text>
                   <TouchableOpacity
                     style={styles.modalCloseButton}
                     onPress={() => setDayModalVisible(false)}
@@ -511,19 +594,30 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.modalBody}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Date</Text>
-                    <Text style={styles.detailValue}>{dayModalData.date}</Text>
+                  <View style={[styles.detailRow, dynamicStyles.detailRow]}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      Date
+                    </Text>
+                    <Text
+                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    >
+                      {dayModalData.date}
+                    </Text>
                   </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Status</Text>
+                  <View style={[styles.detailRow, dynamicStyles.detailRow]}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      Status
+                    </Text>
                     <View
                       style={[
                         styles.statusBadge,
                         {
-                          backgroundColor:
-                            statusToColorMap[dayModalData.status]?.bg ||
-                            "#f0f2f5",
+                          backgroundColor: getStatusColors(dayModalData.status)
+                            .bg,
                         },
                       ]}
                     >
@@ -533,17 +627,27 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
                     </View>
                   </View>
                   {dayModalData.employeeName ? (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Employee</Text>
-                      <Text style={styles.detailValue}>
+                    <View style={[styles.detailRow, dynamicStyles.detailRow]}>
+                      <Text
+                        style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                      >
+                        Employee
+                      </Text>
+                      <Text
+                        style={[styles.detailValue, dynamicStyles.detailValue]}
+                      >
                         {dayModalData.employeeName}
                       </Text>
                     </View>
                   ) : null}
                   {dayModalData.description ? (
                     <View style={{ paddingTop: 10 }}>
-                      <Text style={styles.detailLabel}>Notes</Text>
-                      <Text style={styles.dayDesc}>
+                      <Text
+                        style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                      >
+                        Notes
+                      </Text>
+                      <Text style={[styles.dayDesc, dynamicStyles.text]}>
                         {dayModalData.description}
                       </Text>
                     </View>
@@ -563,7 +667,9 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No attendance records found.</Text>
+              <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
+                No attendance records found.
+              </Text>
             </View>
           }
         />
@@ -576,9 +682,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
         onRequestClose={() => setOpen(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Attendance Details</Text>
+          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                Attendance Details
+              </Text>
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setOpen(false)}
@@ -622,6 +730,10 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
         onClose={() => setShowApplyModal(false)}
         doctype={"Attendance Request"}
         title="Attendance Request"
+        onSuccess={() => {
+          setShowApplyModal(false);
+          fetchRecentAttendance(true);
+        }}
       />
     </View>
   );
