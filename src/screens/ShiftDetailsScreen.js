@@ -131,6 +131,8 @@ const ShiftDetailsScreen = ({
         const empRes = await getResourceList("Employee", {
           filters: JSON.stringify([["user_id", "=", currentUserEmail]]),
           fields: JSON.stringify(["name"]),
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         if (!empRes || empRes.length === 0) {
@@ -188,12 +190,18 @@ const ShiftDetailsScreen = ({
             "end_date",
             "shift_type",
           ]),
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         const shiftTypes = [...new Set(assignments.map((a) => a.shift_type))];
         const shiftTypeMap = {};
         for (const type of shiftTypes) {
-          const details = await getResource("Shift Type", type);
+          const details = await getResource("Shift Type", type, {
+            cache: true,
+            cacheTTL: 24 * 60 * 60 * 1000,
+            forceRefresh: isRefresh,
+          });
           if (shiftTypeMap) {
             shiftTypeMap[type] = details;
           }

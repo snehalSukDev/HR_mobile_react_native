@@ -164,6 +164,8 @@ const SalarySlipScreen = ({
           ]),
           order_by: "start_date desc",
           limit_page_length: 20,
+          cache: true,
+          forceRefresh: isRefresh,
         });
         if (isMountedRef.current) {
           setSalarySlips(slips || []);
@@ -211,6 +213,8 @@ const SalarySlipScreen = ({
       const res = await callFrappeMethod("frappe.desk.form.load.get_docinfo", {
         doctype: "Salary Slip",
         name: slip.name,
+        cache: true,
+        cacheTTL: 5 * 60 * 1000, // 5 minutes
       });
 
       const info = res?.docinfo || res?.message?.docinfo || res;

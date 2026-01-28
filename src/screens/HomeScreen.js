@@ -14,6 +14,8 @@ import {
   Linking,
   StatusBar,
   Platform,
+  RefreshControl,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -98,6 +100,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   // const [mapEnabled, setMapEnabled] = useState(false);
 
   const [allowMobileCheckin, setAllowMobileCheckin] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -161,6 +164,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
       PanResponder.create({
         onStartShouldSetPanResponder: () => !isPunching,
         onMoveShouldSetPanResponder: () => !isPunching,
+        onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_, gestureState) => {
           if (isPunching) return;
           const dx = gestureState.dx;
@@ -237,61 +241,81 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
     holidays: [],
   });
 
-  const fetchEvents = useCallback(async () => {
-    if (!employeeProfile?.name) return;
-    try {
-      const data = await callFrappeMethod(
-        "tbui_backend_core.api.events_today",
-        {
-          employee_id: employeeProfile.name,
-        },
-      );
-      const message = data || {};
-      if (isMountedRef.current) {
-        setEvents({
-          birthdays: Array.isArray(message.birthdays) ? message.birthdays : [],
-          anniversaries: Array.isArray(message.work_anniversaries)
-            ? message.work_anniversaries
-            : [],
-          holidays: Array.isArray(message.holidays) ? message.holidays : [],
-        });
+  const fetchEvents = useCallback(
+    async (forceRefresh = false) => {
+      if (!employeeProfile?.name) return;
+      try {
+        const data = await callFrappeMethod(
+          "tbui_backend_core.api.events_today",
+          {
+            employee_id: employeeProfile.name,
+            cache: true,
+            cacheTTL: 4 * 60 * 60 * 1000, // 4 hours
+            forceRefresh: forceRefresh,
+          },
+        );
+        const message = data || {};
+        if (isMountedRef.current) {
+          setEvents({
+            birthdays: Array.isArray(message.birthdays)
+              ? message.birthdays
+              : [],
+            anniversaries: Array.isArray(message.work_anniversaries)
+              ? message.work_anniversaries
+              : [],
+            holidays: Array.isArray(message.holidays) ? message.holidays : [],
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching events:", err);
       }
-    } catch (err) {
-      console.error("Error fetching events:", err);
-    }
-  }, [employeeProfile]);
+    },
+    [employeeProfile],
+  );
 
   useEffect(() => {
-    fetchEvents();
+    InteractionManager.runAfterInteractions(() => {
+      fetchEvents();
+    });
   }, [fetchEvents]);
 
-  const fetchProfile = useCallback(async () => {
-    if (!isMountedRef.current) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const profile = await fetchEmployeeDetails(currentUserEmail, true);
-      if (isMountedRef.current) {
-        setEmployeeProfile(profile);
+  const fetchProfile = useCallback(
+    async (forceRefresh = false) => {
+      if (!isMountedRef.current) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const profile = await fetchEmployeeDetails(
+          currentUserEmail,
+          true,
+          forceRefresh,
+        );
+        if (isMountedRef.current) {
+          setEmployeeProfile(profile);
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+        if (isMountedRef.current) {
+          setError(err.message || "Unknown error");
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      console.error("Error fetching profile:", err);
-      if (isMountedRef.current) {
-        setError(err.message || "Unknown error");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [currentUserEmail]);
+    },
+    [currentUserEmail],
+  );
 
   const [checkins, setCheckins] = useState([]);
-  const fetchCheckins = useCallback(async () => {
+  const fetchCheckins = useCallback(async (forceRefresh = false) => {
     const data = await getResourceList("Employee Checkin", {
       filters: JSON.stringify([["time", "Timespan", "today"]]),
       fields: JSON.stringify(["log_type", "time"]),
       order_by: "time asc",
+      cache: true,
+      cacheTTL: 5 * 60 * 1000, // 5 minutes
+      forceRefresh: forceRefresh,
     });
 
     if (isMountedRef.current) {
@@ -325,11 +349,15 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   const handleCheck = runCheck;
 
   useEffect(() => {
-    fetchProfile();
-    fetchHRSettings();
-  }, [fetchProfile, fetchHRSettings]);
+    InteractionManager.runAfterInteractions(() => {
+      fetchProfile();
+      fetchHRSettings();
+      fetchCheckins();
+    });
+  }, [fetchProfile, fetchHRSettings, fetchCheckins]);
+
   useEffect(() => {
-    (async () => {
+    InteractionManager.runAfterInteractions(async () => {
       try {
         const pos = await getGeolocation();
         if (
@@ -340,12 +368,21 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           !Number.isNaN(pos.latitude) &&
           !Number.isNaN(pos.longitude)
         ) {
-          setCoords(pos);
+          setCoords((prev) => {
+            if (
+              prev &&
+              prev.latitude === pos.latitude &&
+              prev.longitude === pos.longitude
+            ) {
+              return prev;
+            }
+            return pos;
+          });
         }
       } catch (e) {
         // ignore location failures
       }
-    })();
+    });
   }, []);
 
   const fetchHRSettings = useCallback(async () => {
@@ -364,6 +401,113 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
       );
     }
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Prioritize data fetching
+      await Promise.all([
+        fetchProfile(true),
+        fetchCheckins(true),
+        fetchEvents(true),
+        fetchHRSettings(),
+      ]);
+
+      // Update location asynchronously without blocking the refresh spinner too long
+      // or we can wait for it if it's fast. Let's wait but with a timeout?
+      // For now, just keep it but catch errors individually so one failure doesn't stop others.
+      try {
+        const pos = await getGeolocation();
+        if (
+          isMountedRef.current &&
+          pos &&
+          typeof pos.latitude === "number" &&
+          typeof pos.longitude === "number" &&
+          !Number.isNaN(pos.latitude) &&
+          !Number.isNaN(pos.longitude)
+        ) {
+          setCoords((prev) => {
+            if (
+              prev &&
+              prev.latitude === pos.latitude &&
+              prev.longitude === pos.longitude
+            ) {
+              return prev;
+            }
+            return pos;
+          });
+        }
+      } catch (e) {
+        // ignore location failures
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
+    }
+  }, [fetchProfile, fetchCheckins, fetchEvents, fetchHRSettings]);
+
+  const mapComponent = React.useMemo(() => {
+    if (
+      coords &&
+      typeof coords.latitude === "number" &&
+      typeof coords.longitude === "number" &&
+      !Number.isNaN(coords.latitude) &&
+      !Number.isNaN(coords.longitude)
+    ) {
+      return (
+        <View
+          style={{
+            height: 250,
+            borderRadius: 12,
+            overflow: "hidden",
+            borderWidth: 1,
+            borderColor: "#ddd",
+          }}
+        >
+          <WebView
+            originWhitelist={["*"]}
+            source={{
+              html: `
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+                          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+                          <style>
+                            body { margin: 0; padding: 0; }
+                            #map { height: 100vh; width: 100%; }
+                          </style>
+                        </head>
+                        <body>
+                          <div id="map"></div>
+                          <script>
+                            var map = L.map('map', { zoomControl: false }).setView([${coords.latitude}, ${coords.longitude}], 18);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                              maxZoom: 15,
+                              attribution: '&copy; OpenStreetMap contributors'
+                            }).addTo(map);
+                            L.marker([${coords.latitude}, ${coords.longitude}]).addTo(map);
+                          </script>
+                        </body>
+                      </html>
+                    `,
+            }}
+            style={{ flex: 1 }}
+            scrollEnabled={false}
+          />
+        </View>
+      );
+    }
+    return (
+      <Text style={[styles.sectionText, dynamicStyles.sectionText]}>
+        Fetching location...
+      </Text>
+    );
+  }, [coords, dynamicStyles.sectionText]);
 
   if (loading) {
     return <CustomLoader visible={loading} />;
@@ -387,7 +531,12 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
         backgroundColor={colors.background}
         barStyle={theme === "dark" ? "light-content" : "dark-content"}
       />
-      <ScrollView style={[styles.container, dynamicStyles.container]}>
+      <ScrollView
+        style={[styles.container, dynamicStyles.container]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={[styles.headerCard, dynamicStyles.headerCard]}>
           <View style={styles.headerTop}>
             <ProfileAvatar
@@ -425,60 +574,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
                 My Location
               </Text>
             </View>
-            <View style={styles.sectionBody}>
-              {coords &&
-              typeof coords.latitude === "number" &&
-              typeof coords.longitude === "number" &&
-              !Number.isNaN(coords.latitude) &&
-              !Number.isNaN(coords.longitude) ? (
-                <View
-                  style={{
-                    height: 250,
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    borderWidth: 1,
-                    borderColor: "#ddd",
-                  }}
-                >
-                  <WebView
-                    originWhitelist={["*"]}
-                    source={{
-                      html: `
-                      <!DOCTYPE html>
-                      <html>
-                        <head>
-                          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-                          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-                          <style>
-                            body { margin: 0; padding: 0; }
-                            #map { height: 100vh; width: 100%; }
-                          </style>
-                        </head>
-                        <body>
-                          <div id="map"></div>
-                          <script>
-                            var map = L.map('map', { zoomControl: false }).setView([${coords.latitude}, ${coords.longitude}], 18);
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                              maxZoom: 15,
-                              attribution: '&copy; OpenStreetMap contributors'
-                            }).addTo(map);
-                            L.marker([${coords.latitude}, ${coords.longitude}]).addTo(map);
-                          </script>
-                        </body>
-                      </html>
-                    `,
-                    }}
-                    style={{ flex: 1 }}
-                    scrollEnabled={false}
-                  />
-                </View>
-              ) : (
-                <Text style={[styles.sectionText, dynamicStyles.sectionText]}>
-                  Fetching location...
-                </Text>
-              )}
-            </View>
+            <View style={styles.sectionBody}>{mapComponent}</View>
           </View>
 
           {allowMobileCheckin ? (

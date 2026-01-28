@@ -396,7 +396,10 @@ const DoctypeExpenseModal = ({
                     (async () => {
                       try {
                         if (!isMountedRef.current) return;
-                        const emp = await getResource("Employee", val);
+                        const emp = await getResource("Employee", val, {
+                          cache: true,
+                          cacheTTL: 60 * 60 * 1000, // 1 hour
+                        });
                         if (isMountedRef.current && emp?.employee_name) {
                           setFieldValue("employee_name", emp.employee_name);
                         }

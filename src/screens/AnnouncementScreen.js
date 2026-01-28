@@ -176,6 +176,8 @@ const AnnouncementScreen = () => {
           order_by: "modified desc",
           limit: 10,
           as_dict: true,
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         if (isMountedRef.current) {

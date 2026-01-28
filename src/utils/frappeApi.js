@@ -2,6 +2,7 @@ import * as Location from "expo-location";
 import axiosInstance from "./axiosInstance";
 import { setAxiosBaseURL } from "./axiosInstance";
 import qs from "qs";
+import CacheManager from "./CacheManager";
 // src/utils/frappeApi.js
 // Utility functions for interacting with the Frappe API in React Native.
 // These use standard fetch, which works in React Native.
@@ -160,6 +161,15 @@ export async function getCurrentUser() {
 
 // Fetch employee details by user ID (email) or employee name
 export async function fetchEmployeeDetails(identifier, byEmail = true) {
+  const cacheKey = `employee_${identifier}_${byEmail}`;
+  const cached = await CacheManager.get(cacheKey);
+  if (cached) {
+    console.log(
+      `[FrappeAPI] Returning cached employee details for ${identifier}`,
+    );
+    return cached;
+  }
+
   let filters;
   let fields = [
     "name",
@@ -191,6 +201,7 @@ export async function fetchEmployeeDetails(identifier, byEmail = true) {
       )}&fields=${JSON.stringify(fields)}`,
     );
     if (data && data.data && data.data.length > 0) {
+      await CacheManager.set(cacheKey, data.data[0]);
       return data.data[0];
     }
     return null;
@@ -202,18 +213,34 @@ export async function fetchEmployeeDetails(identifier, byEmail = true) {
 
 // Get a list of resources (DocTypes) with filters and fields
 export async function getResourceList(doctype, params = {}) {
+  const {
+    cache = false,
+    cacheTTL,
+    forceRefresh = false,
+    ...apiParams
+  } = params;
+  const cacheKey = `list_${doctype}_${JSON.stringify(apiParams)}`;
+
+  if (cache && !forceRefresh) {
+    const cachedData = await CacheManager.get(cacheKey);
+    if (cachedData) {
+      console.log(`[FrappeAPI] Returning cached list for ${doctype}`);
+      return cachedData;
+    }
+  }
+
   const queryParams = new URLSearchParams();
   const normalizeJsonParam = (value) => {
     if (value == null) return null;
     return typeof value === "string" ? value : JSON.stringify(value);
   };
 
-  const filters = normalizeJsonParam(params.filters);
-  const fields = normalizeJsonParam(params.fields);
-  const orderBy = params.order_by ?? params.orderBy;
+  const filters = normalizeJsonParam(apiParams.filters);
+  const fields = normalizeJsonParam(apiParams.fields);
+  const orderBy = apiParams.order_by ?? apiParams.orderBy;
   const limitPageLength =
-    params.limit_page_length ?? params.limitPageLength ?? params.limit;
-  const asDict = params.as_dict ?? params.asDict;
+    apiParams.limit_page_length ?? apiParams.limitPageLength ?? apiParams.limit;
+  const asDict = apiParams.as_dict ?? apiParams.asDict;
 
   if (filters) queryParams.append("filters", filters);
   if (fields) queryParams.append("fields", fields);
@@ -232,6 +259,9 @@ export async function getResourceList(doctype, params = {}) {
     const data = await frappeFetch(
       `/api/resource/${encodeURIComponent(doctype)}?${queryParams.toString()}`,
     );
+    if (cache && data.data) {
+      await CacheManager.set(cacheKey, data.data, cacheTTL);
+    }
     return data.data;
   } catch (error) {
     console.error(`Error getting resource list for ${doctype}:`, error);
@@ -240,11 +270,28 @@ export async function getResourceList(doctype, params = {}) {
 }
 
 // Get a single resource (DocType) by name
-export async function getResource(doctype, name) {
+export async function getResource(
+  doctype,
+  name,
+  { cache = false, cacheTTL, forceRefresh = false } = {},
+) {
+  const cacheKey = `resource_${doctype}_${name}`;
+
+  if (cache && !forceRefresh) {
+    const cachedData = await CacheManager.get(cacheKey);
+    if (cachedData) {
+      console.log(`[FrappeAPI] Returning cached resource ${doctype}/${name}`);
+      return cachedData;
+    }
+  }
+
   try {
     const data = await frappeFetch(
       `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
     );
+    if (cache && data.data) {
+      await CacheManager.set(cacheKey, data.data, cacheTTL);
+    }
     return data.data;
   } catch (error) {
     console.error(`Error getting resource ${name} from ${doctype}:`, error);
@@ -254,14 +301,29 @@ export async function getResource(doctype, name) {
 
 // Call a Frappe Python method
 export async function callFrappeMethod(method, args = {}) {
+  const { cache = false, cacheTTL, forceRefresh = false, ...apiArgs } = args;
+  const cacheKey = `method_${method}_${JSON.stringify(apiArgs)}`;
+
+  if (cache && !forceRefresh) {
+    const cachedData = await CacheManager.get(cacheKey);
+    if (cachedData) {
+      console.log(`[FrappeAPI] Returning cached method result for ${method}`);
+      return cachedData;
+    }
+  }
+
   try {
     const res = await axiosInstance.post(
       `api/method/${method}`,
-      qs.stringify(args),
+      qs.stringify(apiArgs),
       { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
 
-    return res.data?.message ?? res.data;
+    const result = res.data?.message ?? res.data;
+    if (cache && result) {
+      await CacheManager.set(cacheKey, result, cacheTTL);
+    }
+    return result;
   } catch (error) {
     const status = error?.response?.status;
     const data = error?.response?.data;
@@ -317,7 +379,14 @@ export async function getGeolocation() {
   };
 }
 
-export async function getMetaData(doctype) {
+export async function getMetaData(doctype, forceRefresh = false) {
+  const cacheKey = `meta_${doctype}`;
+
+  if (!forceRefresh) {
+    const cached = await CacheManager.get(cacheKey);
+    if (cached) return cached;
+  }
+
   try {
     const res = await axiosInstance.get(
       `/api/method/frappe.desk.form.load.getdoctype`,
@@ -325,7 +394,9 @@ export async function getMetaData(doctype) {
     );
     const docs = res?.data?.message?.docs || res?.data?.docs || [];
     const fields = Array.isArray(docs) && docs[0]?.fields ? docs[0].fields : [];
-    return { docs, fields };
+    const result = { docs, fields };
+    await CacheManager.set(cacheKey, result);
+    return result;
   } catch (e) {
     throw e;
   }

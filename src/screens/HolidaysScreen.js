@@ -13,6 +13,7 @@ import {
   Button,
   TouchableOpacity,
   useWindowDimensions,
+  RefreshControl,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -42,6 +43,7 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
   const { width } = useWindowDimensions();
   const isSmall = width < 400;
   const isMountedRef = useRef(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const dynamicStyles = useMemo(
     () => ({
@@ -87,61 +89,73 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
     };
   }, []);
 
-  const fetchHolidays = useCallback(async () => {
-    if (!isMountedRef.current) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const yearStart = `${currentYear}-01-01`;
-      const yearEnd = `${currentYear}-12-31`;
-
-      const listNames = await getResourceList("Holiday List", {
-        filters: JSON.stringify([
-          ["from_date", "<=", yearEnd],
-          ["to_date", ">=", yearStart],
-        ]),
-        fields: JSON.stringify(["name"]),
-        order_by: "name asc",
-      });
-
+  const fetchHolidays = useCallback(
+    async (isRefresh = false) => {
       if (!isMountedRef.current) return;
+      if (!isRefresh) setLoading(true);
+      setError(null);
+      try {
+        const yearStart = `${currentYear}-01-01`;
+        const yearEnd = `${currentYear}-12-31`;
 
-      let result = [];
-      for (const list of listNames) {
+        const listNames = await getResourceList("Holiday List", {
+          filters: JSON.stringify([
+            ["from_date", "<=", yearEnd],
+            ["to_date", ">=", yearStart],
+          ]),
+          fields: JSON.stringify(["name"]),
+          order_by: "name asc",
+          cache: true,
+          cacheTTL: 24 * 60 * 60 * 1000, // 24 hours
+          forceRefresh: isRefresh,
+        });
+
         if (!isMountedRef.current) return;
-        const doc = await getResource("Holiday List", list.name);
-        if (doc?.holidays?.length) {
-          doc.holidays.forEach((item) => {
-            if (item.holiday_date?.startsWith(currentYear.toString())) {
-              result.push({
-                id: `${list.name}-${item.idx || item.holiday_date}`,
-                holiday_date: item.holiday_date,
-                description: item.description,
-                weekly_off: item.weekly_off,
-              });
-            }
+
+        let result = [];
+        for (const list of listNames) {
+          if (!isMountedRef.current) return;
+          const doc = await getResource("Holiday List", list.name);
+          if (doc?.holidays?.length) {
+            doc.holidays.forEach((item) => {
+              if (item.holiday_date?.startsWith(currentYear.toString())) {
+                result.push({
+                  id: `${list.name}-${item.idx || item.holiday_date}`,
+                  holiday_date: item.holiday_date,
+                  description: item.description,
+                  weekly_off: item.weekly_off,
+                });
+              }
+            });
+          }
+        }
+        if (isMountedRef.current) {
+          setHolidays(result);
+        }
+      } catch (err) {
+        console.error(err);
+        if (isMountedRef.current) {
+          setError("Failed to load holidays.");
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Failed to load holidays.",
           });
         }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
-      if (isMountedRef.current) {
-        setHolidays(result);
-      }
-    } catch (err) {
-      console.error(err);
-      if (isMountedRef.current) {
-        setError("Failed to load holidays.");
-        Toast.show({
-          type: "error",
-          text1: "Error",
-          text2: "Failed to load holidays.",
-        });
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [currentYear]);
+    },
+    [currentYear],
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchHolidays(true);
+  }, [fetchHolidays]);
 
   useFocusEffect(
     useCallback(() => {
@@ -277,6 +291,13 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
     <ScrollView
       style={[styles.container, dynamicStyles.container]}
       contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+        />
+      }
     >
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>

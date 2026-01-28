@@ -107,12 +107,16 @@ const NotificationScreen = ({
     };
   }, []);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (!isMountedRef.current) return;
     setError(null);
     try {
       const message = await callFrappeMethod(
         "frappe.desk.doctype.notification_log.notification_log.get_notification_logs",
+        {
+          cache: true,
+          forceRefresh: isRefresh,
+        },
       );
       if (isMountedRef.current) {
         setNotify(message?.notification_logs || []);
@@ -147,7 +151,7 @@ const NotificationScreen = ({
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchNotifications();
+    await fetchNotifications(true);
     setRefreshing(false);
   }, [fetchNotifications]);
 

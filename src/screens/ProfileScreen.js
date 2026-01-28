@@ -12,6 +12,7 @@ import {
   ScrollView,
   Button,
   TouchableOpacity,
+  RefreshControl,
 } from "react-native";
 import { format } from "date-fns";
 import { useTheme } from "../context/ThemeContext";
@@ -76,6 +77,7 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("Details");
   const [aboutOpen, setAboutOpen] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -83,35 +85,45 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
     };
   }, []);
 
-  const fetchProfile = useCallback(async () => {
-    if (!isMountedRef.current) return;
-    setLoading(true);
-    try {
-      const profile = await fetchEmployeeDetails(currentUserEmail, true);
-      if (isMountedRef.current) {
-        setEmployeeProfile(profile);
+  const fetchProfile = useCallback(
+    async (forceRefresh = false) => {
+      if (!isMountedRef.current) return;
+      setLoading(true);
+      try {
+        const profile = await fetchEmployeeDetails(
+          currentUserEmail,
+          true,
+          forceRefresh,
+        );
+        if (isMountedRef.current) {
+          setEmployeeProfile(profile);
+        }
+      } catch (err) {
+        if (isMountedRef.current) {
+          setError(err.message || "Unknown error");
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      if (isMountedRef.current) {
-        setError(err.message || "Unknown error");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [currentUserEmail]);
+    },
+    [currentUserEmail],
+  );
 
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
 
   const [checkins, setCheckins] = useState([]);
-  const fetchCheckins = useCallback(async () => {
+  const fetchCheckins = useCallback(async (forceRefresh = false) => {
     const data = await getResourceList("Employee Checkin", {
       filters: JSON.stringify([["time", "Timespan", "today"]]),
       fields: JSON.stringify(["log_type"]),
       order_by: "time asc",
+      cache: true,
+      cacheTTL: 5 * 60 * 1000, // 5 minutes
+      forceRefresh: forceRefresh,
     });
     if (isMountedRef.current) {
       setCheckins(data || []);
@@ -147,7 +159,7 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
           text2: `Checked ${logType}`,
         });
       }
-      fetchCheckins();
+      fetchCheckins(true); // Force refresh checkins after checkin
     } catch (e) {
       if (isMountedRef.current) {
         Toast.show({ type: "error", text1: "Error", text2: "Check-in failed" });
@@ -155,16 +167,33 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchProfile(true), fetchCheckins(true)]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
+    }
+  }, [fetchProfile, fetchCheckins]);
+
   return (
     <>
       <CustomLoader visible={loading} />
       {!loading && !employeeProfile ? (
         <View style={[styles.centered, dynamicStyles.centered]}>
           <Text style={dynamicStyles.text}>No profile data</Text>
+          <Button title="Retry" onPress={() => fetchProfile(false)} />
         </View>
       ) : !loading && employeeProfile ? (
         <ScrollView
           contentContainerStyle={[styles.container, dynamicStyles.container]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
           {/* ... existing scrollview content ... */}
           <View style={[styles.profileCard, dynamicStyles.profileCard]}>

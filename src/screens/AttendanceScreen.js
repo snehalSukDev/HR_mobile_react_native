@@ -12,6 +12,8 @@ import {
   FlatList,
   TouchableOpacity,
   Modal,
+  ScrollView,
+  RefreshControl,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { getResource, getResourceList } from "../utils/frappeApi";
@@ -197,6 +199,8 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           },
           limit: "*",
           asDict: true,
+          cache: true,
+          forceRefresh: isRefresh,
         });
         if (isMountedRef.current) {
           setRecentAttendanceList(attendanceList || []);
@@ -290,6 +294,8 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           order_by: "attendance_date asc",
           limit_page_length: 500,
           asDict: true,
+          cache: true,
+          forceRefresh: isRefresh,
         });
         if (isMountedRef.current) {
           setMonthAttendanceList(data || []);
@@ -519,61 +525,68 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
 
       {normalizedViewType === "calendar" ? (
         <>
-          <Calendar
-            key={theme}
-            current={calendarCurrent}
-            enableSwipeMonths
-            markingType="custom"
-            markedDates={markedDates}
-            onDayPress={(day) => {
-              const key = day.dateString;
-              setSelectedDate(key);
-              const attendance = monthAttendanceList.find(
-                (a) => (a.attendance_date || "").split("T")[0] === key,
-              );
-              const holiday = holidays.find((h) => h.date === key);
-              const status = attendance?.status || (holiday ? "Holiday" : null);
-              if (!status) return;
-              const { title } = getStatusColors(status);
-              const desc = holiday?.description
-                ? holiday.description.replace(/<[^>]+>/g, "").trim()
-                : "";
-              setDayModalData({
-                date: key,
-                status,
-                title,
-                employeeName: attendance?.employee_name || "",
-                description: desc,
-              });
-              setDayModalVisible(true);
-            }}
-            onMonthChange={(m) => {
-              const next = { year: m.year, month: m.month };
-              setCalendarMonth(next);
-              // rely on effect to fetch; avoids double fetch and global re-render
-            }}
-            style={[styles.calendarStyle, dynamicStyles.calendarStyle]}
-            theme={dynamicStyles.calendarTheme}
-          />
-          {/* {calendarLoading && (
+          <ScrollView
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
+            <Calendar
+              key={theme}
+              current={calendarCurrent}
+              enableSwipeMonths
+              markingType="custom"
+              markedDates={markedDates}
+              onDayPress={(day) => {
+                const key = day.dateString;
+                setSelectedDate(key);
+                const attendance = monthAttendanceList.find(
+                  (a) => (a.attendance_date || "").split("T")[0] === key,
+                );
+                const holiday = holidays.find((h) => h.date === key);
+                const status =
+                  attendance?.status || (holiday ? "Holiday" : null);
+                if (!status) return;
+                const { title } = getStatusColors(status);
+                const desc = holiday?.description
+                  ? holiday.description.replace(/<[^>]+>/g, "").trim()
+                  : "";
+                setDayModalData({
+                  date: key,
+                  status,
+                  title,
+                  employeeName: attendance?.employee_name || "",
+                  description: desc,
+                });
+                setDayModalVisible(true);
+              }}
+              onMonthChange={(m) => {
+                const next = { year: m.year, month: m.month };
+                setCalendarMonth(next);
+                // rely on effect to fetch; avoids double fetch and global re-render
+              }}
+              style={[styles.calendarStyle, dynamicStyles.calendarStyle]}
+              theme={dynamicStyles.calendarTheme}
+            />
+            {/* {calendarLoading && (
             <View style={{ paddingVertical: 12 }}>
             </View>
           )} */}
-          <View style={styles.legendContainer}>
-            {ATTENDANCE_STATUSES.map((key) => {
-              const { bg } = getStatusColors(key);
-              return (
-                <View key={key} style={styles.legendItem}>
-                  <View
-                    style={[styles.legendColorBox, { backgroundColor: bg }]}
-                  />
-                  <Text style={[styles.legendText, dynamicStyles.legendText]}>
-                    {key}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
+            <View style={styles.legendContainer}>
+              {ATTENDANCE_STATUSES.map((key) => {
+                const { bg } = getStatusColors(key);
+                return (
+                  <View key={key} style={styles.legendItem}>
+                    <View
+                      style={[styles.legendColorBox, { backgroundColor: bg }]}
+                    />
+                    <Text style={[styles.legendText, dynamicStyles.legendText]}>
+                      {key}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
           <Modal
             visible={dayModalVisible}
             transparent

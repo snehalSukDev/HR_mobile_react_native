@@ -146,7 +146,7 @@ function NotificationBell({ onLogout, currentUserEmail }) {
   }, []);
 
   const fetchNotifications = useCallback(
-    async ({ showLoader = false } = {}) => {
+    async ({ showLoader = false, forceRefresh = false } = {}) => {
       if (showLoader) {
         setError(null);
         setLoading(true);
@@ -154,6 +154,10 @@ function NotificationBell({ onLogout, currentUserEmail }) {
       try {
         const message = await callFrappeMethod(
           "frappe.desk.doctype.notification_log.notification_log.get_notification_logs",
+          {
+            cache: true,
+            forceRefresh: forceRefresh,
+          },
         );
         setNotify(message?.notification_logs || []);
 
@@ -174,19 +178,19 @@ function NotificationBell({ onLogout, currentUserEmail }) {
 
   const open = useCallback(async () => {
     setVisible(true);
-    await fetchNotifications({ showLoader: true });
+    await fetchNotifications({ showLoader: true, forceRefresh: true });
   }, [fetchNotifications]);
 
   useEffect(() => {
     fetchNotifications();
 
     const intervalId = setInterval(() => {
-      fetchNotifications();
+      fetchNotifications({ forceRefresh: true });
     }, 60000);
 
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        fetchNotifications();
+        fetchNotifications({ forceRefresh: true });
       }
     });
 
@@ -262,6 +266,7 @@ function NotificationBell({ onLogout, currentUserEmail }) {
       >
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+            <CustomLoader visible={loading} />
             <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
               {selected ? (
                 <TouchableOpacity

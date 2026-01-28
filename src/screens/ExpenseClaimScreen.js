@@ -181,6 +181,8 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
           ]),
           order_by: "posting_date desc",
           limit_page_length: 50,
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         if (isMountedRef.current) {
@@ -203,6 +205,8 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
           ]),
           order_by: "posting_date desc",
           limit_page_length: 50,
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         if (isMountedRef.current) {

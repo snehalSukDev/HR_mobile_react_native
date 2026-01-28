@@ -16,6 +16,7 @@ import {
   Modal,
 } from "react-native";
 import { InteractionManager } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { getResourceList, saveDoc } from "../utils/frappeApi";
 import { Wallet, Plus, List as ListIcon } from "lucide-react-native";
 import { format, parseISO } from "date-fns";
@@ -196,6 +197,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
           ]),
           order_by: "posting_date desc",
           limit_page_length: 50,
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         if (!isMountedRef.current || latestReqRef.current.expense !== reqId)
@@ -220,6 +223,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
           ]),
           order_by: "posting_date desc",
           limit_page_length: 50,
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         if (!isMountedRef.current || latestReqRef.current.expense !== reqId)
@@ -247,8 +252,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       let canceled = false;
       const task = InteractionManager.runAfterInteractions(() => {
         if (canceled) return;
-        if (docTypeTab === "expense") fetchClaims(true);
-        if (docTypeTab === "leave") fetchLeaves(true);
+        if (docTypeTab === "expense") fetchClaims(false);
+        if (docTypeTab === "leave") fetchLeaves(false);
       });
       return () => {
         canceled = true;
@@ -282,18 +287,20 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
           fields: JSON.stringify([
             "name",
             "employee_name",
+            "leave_type",
+            "status",
+            "total_leave_days",
             "from_date",
             "to_date",
-            "total_leave_days",
-            "leave_type",
             "description",
-            "status",
+            "posting_date",
             "docstatus",
-            "modified",
           ]),
           order_by: "modified desc",
           limit_page_length: 50,
           as_dict: 1,
+          cache: true,
+          forceRefresh: isRefresh,
         });
         if (!isMountedRef.current || latestReqRef.current.leave !== reqId)
           return;
@@ -317,7 +324,13 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchClaims(true);
+    if (docTypeTab === "expense") {
+      fetchClaims(true);
+    } else if (docTypeTab === "leave") {
+      fetchLeaves(true);
+    } else {
+      setRefreshing(false);
+    }
   };
 
   const handleItemPress = (item) => {
@@ -388,7 +401,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       await saveDoc(doc);
       setShowExpenseModal(false);
       setSelectedExpense(null);
-      await fetchClaims();
+      await fetchClaims(true);
       Toast.show({
         type: "success",
         text1: "Success",
@@ -417,7 +430,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
       await saveDoc(doc);
       setShowLeaveModal(false);
       setSelectedLeave(null);
-      await fetchLeaves();
+      await fetchLeaves(true);
       Toast.show({
         type: "success",
         text1: "Success",

@@ -1,4 +1,4 @@
-// src/screens/NotificationScreen.js
+// src/screens/SettingsScreen.js
 
 import React, { useMemo, useState } from "react";
 import {
@@ -20,6 +20,24 @@ const SettingsScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
     () => ({
       container: { backgroundColor: colors.background },
       sectionTitle: { color: colors.text },
+      cancelButton: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        borderWidth: 1,
+      },
+      cancelButtonText: {
+        color: colors.text,
+      },
+      modalCard: {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+      },
+      modalText: {
+        color: colors.textSecondary,
+      },
+      modalTitle: {
+        color: colors.text,
+      },
     }),
     [colors],
   );
@@ -59,12 +77,7 @@ const SettingsScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         onRequestClose={cancelLogout}
       >
         <View style={styles.modalBackdrop}>
-          <View
-            style={[
-              styles.modalCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
+          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
               Logout
             </Text>
@@ -73,10 +86,10 @@ const SettingsScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, dynamicStyles.cancelButton]}
                 onPress={cancelLogout}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={dynamicStyles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.logoutButton]}

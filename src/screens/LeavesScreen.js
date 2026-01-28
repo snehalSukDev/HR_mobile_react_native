@@ -202,6 +202,8 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           ]),
           fields: JSON.stringify(["leave_type", "leaves", "transaction_type"]),
           limit_page_length: 100,
+          cache: true,
+          forceRefresh: isRefresh,
         });
 
         const leaveMap = {};
@@ -243,6 +245,8 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           ]),
           order_by: "from_date desc",
           limit_page_length: 20,
+          cache: true,
+          forceRefresh: isRefresh,
         });
         if (isMountedRef.current) {
           setLeaveApplications(leaveApps || []);
@@ -253,6 +257,8 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
           filters: JSON.stringify([["employee", "=", currentEmployeeId]]),
           fields: JSON.stringify(["attendance_date", "status"]),
           limit_page_length: 100,
+          cache: true,
+          forceRefresh: isRefresh,
         });
         if (isMountedRef.current) {
           setAttendanceRecords(attendance || []);
