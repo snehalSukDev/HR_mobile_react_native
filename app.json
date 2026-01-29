@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "in.techbirdit.frappehrms",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to mark attendance and verify check-ins.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location to mark attendance and verify check-ins."
       }
     },
     "android": {
