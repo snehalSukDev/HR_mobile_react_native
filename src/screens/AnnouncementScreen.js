@@ -16,6 +16,7 @@ import {
   Modal,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { getResourceList } from "../utils/frappeApi";
 import { Picker } from "@react-native-picker/picker";
@@ -338,7 +339,10 @@ const AnnouncementScreen = () => {
   }
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <SafeAreaView
+      style={[styles.container, dynamicStyles.container]}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <CustomLoader visible={loading && !refreshing} />
       <FlatList
         data={items}
@@ -443,7 +447,7 @@ const AnnouncementScreen = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 

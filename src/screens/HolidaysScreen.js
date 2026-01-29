@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import { MaterialIcons } from "@expo/vector-icons";
 import { getResourceList, getResource } from "../utils/frappeApi";
@@ -288,81 +289,86 @@ const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, dynamicStyles.container]}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-        />
-      }
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={["top", "bottom", "left", "right"]}
     >
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
-          Holidays ({currentYear})
-        </Text>
-        <View style={styles.navigationButtons}>
-          <TouchableOpacity
-            onPress={() => handleYearChange(-1)}
-            style={[styles.navButton, dynamicStyles.navButton]}
-          >
-            <MaterialIcons
-              name="chevron-left"
-              size={24}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleYearChange(1)}
-            style={[styles.navButton, dynamicStyles.navButton]}
-          >
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
+      <ScrollView
+        style={[styles.container, dynamicStyles.container]}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+            Holidays ({currentYear})
+          </Text>
+          <View style={styles.navigationButtons}>
+            <TouchableOpacity
+              onPress={() => handleYearChange(-1)}
+              style={[styles.navButton, dynamicStyles.navButton]}
+            >
+              <MaterialIcons
+                name="chevron-left"
+                size={24}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleYearChange(1)}
+              style={[styles.navButton, dynamicStyles.navButton]}
+            >
+              <MaterialIcons
+                name="chevron-right"
+                size={24}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.holidayFilterControls}>
-        <Text style={[styles.filterLabel, dynamicStyles.filterLabel]}>
-          Filter:
-        </Text>
-        <Picker
-          selectedValue={holidayTypeFilter}
-          onValueChange={setHolidayTypeFilter}
-          style={[
-            styles.holidayTypeSelect,
-            isSmall && { width: 180 },
-            dynamicStyles.holidayTypeSelect,
-          ]}
-          dropdownIconColor={colors.text}
-        >
-          <Picker.Item
-            label="All"
-            value="All"
-            style={dynamicStyles.pickerItem}
-          />
-          <Picker.Item
-            label="Public Holidays"
-            value="Public Holiday"
-            style={dynamicStyles.pickerItem}
-          />
-          <Picker.Item
-            label="Weekly Offs"
-            value="Weekly Off"
-            style={dynamicStyles.pickerItem}
-          />
-        </Picker>
-      </View>
+        <View style={styles.holidayFilterControls}>
+          <Text style={[styles.filterLabel, dynamicStyles.filterLabel]}>
+            Filter:
+          </Text>
+          <Picker
+            selectedValue={holidayTypeFilter}
+            onValueChange={setHolidayTypeFilter}
+            style={[
+              styles.holidayTypeSelect,
+              isSmall && { width: 180 },
+              dynamicStyles.holidayTypeSelect,
+            ]}
+            dropdownIconColor={colors.text}
+          >
+            <Picker.Item
+              label="All"
+              value="All"
+              style={dynamicStyles.pickerItem}
+            />
+            <Picker.Item
+              label="Public Holidays"
+              value="Public Holiday"
+              style={dynamicStyles.pickerItem}
+            />
+            <Picker.Item
+              label="Weekly Offs"
+              value="Weekly Off"
+              style={dynamicStyles.pickerItem}
+            />
+          </Picker>
+        </View>
 
-      {renderList(upcomingHolidays, "Upcoming Holidays")}
-      {currentYear <= new Date().getFullYear() &&
-        renderList(pastHolidays, "Past Holidays")}
-    </ScrollView>
+        {renderList(upcomingHolidays, "Upcoming Holidays")}
+        {currentYear <= new Date().getFullYear() &&
+          renderList(pastHolidays, "Past Holidays")}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 

@@ -525,10 +525,13 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, dynamicStyles.safeArea]}>
+    <SafeAreaView
+      style={[styles.safeArea, dynamicStyles.safeArea]}
+      edges={["right", "bottom", "left"]}
+    >
       <StatusBar
         translucent
-        backgroundColor={colors.background}
+        backgroundColor="transparent"
         barStyle={theme === "dark" ? "light-content" : "dark-content"}
       />
       <ScrollView

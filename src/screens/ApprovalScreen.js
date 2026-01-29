@@ -15,6 +15,7 @@ import {
   TextInput,
   Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { InteractionManager } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { getResourceList, saveDoc } from "../utils/frappeApi";
@@ -688,7 +689,10 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
   }
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <SafeAreaView
+      style={[styles.container, dynamicStyles.container]}
+      edges={["top", "bottom", "left", "right"]}
+    >
       {docTypeTab === "leave" ? (
         <FlatList
           data={Array.isArray(leaveList) ? leaveList : []}
@@ -700,22 +704,8 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
               item.status === "Open" || item.docstatus === 0
                 ? "Pending"
                 : item.status || "N/A";
-            const statusColor =
-              s === "Approved"
-                ? "#e8f5e9"
-                : s === "Rejected"
-                  ? "#ffebee"
-                  : s === "Pending"
-                    ? "#fff3e0"
-                    : "#f0f0f5";
-            const statusTextColor =
-              s === "Approved"
-                ? "#2e7d32"
-                : s === "Rejected"
-                  ? "#c62828"
-                  : s === "Pending"
-                    ? "#ef6c00"
-                    : "#333";
+            const { bg: statusColor, text: statusTextColor } =
+              getStatusColors(s);
             return (
               <TouchableOpacity
                 style={[styles.card, dynamicStyles.card]}
@@ -992,7 +982,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         doctype="Expense Claim"
         title="Expense Claim"
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

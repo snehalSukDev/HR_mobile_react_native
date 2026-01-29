@@ -13,6 +13,7 @@ import {
   ImageBackground,
   Animated,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Eye, EyeOff } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import CustomLoader from "../Components/CustomLoader";
@@ -186,94 +187,99 @@ const LoginScreen = ({ onLoginSuccess }) => {
       <View style={styles.overlay} />
 
       {/* Content (NOT animated) */}
-      <KeyboardAvoidingView
+      <SafeAreaView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        edges={["top", "bottom", "left", "right"]}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            contentContainerStyle={styles.container}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={[styles.card, dynamicStyles.card]}>
-              <Text style={[styles.appTitle, dynamicStyles.appTitle]}>
-                Techbird HR
-              </Text>
-              <Text style={[styles.loginTitle, dynamicStyles.textSecondary]}>
-                Login to Your Account
-              </Text>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <ScrollView
+              contentContainerStyle={styles.container}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={[styles.card, dynamicStyles.card]}>
+                <Text style={[styles.appTitle, dynamicStyles.appTitle]}>
+                  Techbird HR
+                </Text>
+                <Text style={[styles.loginTitle, dynamicStyles.textSecondary]}>
+                  Login to Your Account
+                </Text>
 
-              <View style={[styles.urlRow, dynamicStyles.urlRow]}>
-                <View style={[styles.urlPrefix, dynamicStyles.urlPrefix]}>
-                  <Text style={[styles.urlPrefixText, dynamicStyles.text]}>
-                    https://
-                  </Text>
+                <View style={[styles.urlRow, dynamicStyles.urlRow]}>
+                  <View style={[styles.urlPrefix, dynamicStyles.urlPrefix]}>
+                    <Text style={[styles.urlPrefixText, dynamicStyles.text]}>
+                      https://
+                    </Text>
+                  </View>
+                  <TextInput
+                    style={[styles.urlInput, { color: colors.text }]}
+                    placeholder="yourdomain.com"
+                    placeholderTextColor={dynamicStyles.placeholder}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                    value={siteName}
+                    onChangeText={(t) => setSiteName(normalizeSite(t))}
+                    editable={!loading}
+                  />
                 </View>
+
+                {/* Email */}
                 <TextInput
-                  style={[styles.urlInput, { color: colors.text }]}
-                  placeholder="yourdomain.com"
+                  style={[styles.input, dynamicStyles.input]}
+                  placeholder="Email or Username"
                   placeholderTextColor={dynamicStyles.placeholder}
                   autoCapitalize="none"
-                  keyboardType="url"
-                  value={siteName}
-                  onChangeText={(t) => setSiteName(normalizeSite(t))}
-                  editable={!loading}
-                />
-              </View>
-
-              {/* Email */}
-              <TextInput
-                style={[styles.input, dynamicStyles.input]}
-                placeholder="Email or Username"
-                placeholderTextColor={dynamicStyles.placeholder}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-                editable={!loading}
-              />
-
-              {/* Password */}
-              <View style={[styles.passwordContainer, dynamicStyles.input]}>
-                <TextInput
-                  style={[styles.passwordInput, { color: colors.text }]}
-                  placeholder="Password"
-                  placeholderTextColor={dynamicStyles.placeholder}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  value={password}
-                  onChangeText={setPassword}
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
                   editable={!loading}
                 />
 
+                {/* Password */}
+                <View style={[styles.passwordContainer, dynamicStyles.input]}>
+                  <TextInput
+                    style={[styles.passwordInput, { color: colors.text }]}
+                    placeholder="Password"
+                    placeholderTextColor={dynamicStyles.placeholder}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    value={password}
+                    onChangeText={setPassword}
+                    editable={!loading}
+                  />
+
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeIcon}
+                    activeOpacity={0.7}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} color={dynamicStyles.iconColor} />
+                    ) : (
+                      <Eye size={20} color={dynamicStyles.iconColor} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Login Button */}
                 <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                  activeOpacity={0.7}
+                  style={[styles.loginButton, loading && { opacity: 0.6 }]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                  activeOpacity={0.8}
                 >
-                  {showPassword ? (
-                    <EyeOff size={20} color={dynamicStyles.iconColor} />
-                  ) : (
-                    <Eye size={20} color={dynamicStyles.iconColor} />
-                  )}
+                  <Text style={styles.loginButtonText}>
+                    {loading ? "Logging in..." : "Login"}
+                  </Text>
                 </TouchableOpacity>
               </View>
-
-              {/* Login Button */}
-              <TouchableOpacity
-                style={[styles.loginButton, loading && { opacity: 0.6 }]}
-                onPress={handleLogin}
-                disabled={loading}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.loginButtonText}>
-                  {loading ? "Logging in..." : "Login"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+            </ScrollView>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
       <CustomLoader visible={loading} />
     </View>
   );

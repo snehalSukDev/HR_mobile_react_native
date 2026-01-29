@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "icon": "./src/assests/techbirdbg.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+
+    "newArchEnabled": false,
     "splash": {
       "image": "./src/assests/techbirdbg.png",
       "resizeMode": "contain",

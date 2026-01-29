@@ -15,6 +15,7 @@ import {
   RefreshControl,
   Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
 import CustomLoader from "../Components/CustomLoader";
@@ -366,7 +367,10 @@ const ShiftDetailsScreen = ({
 
   if (error) {
     return (
-      <View style={[styles.centered, dynamicStyles.centered]}>
+      <SafeAreaView
+        style={[styles.centered, dynamicStyles.centered]}
+        edges={["top", "bottom", "left", "right"]}
+      >
         <MaterialIcons
           name="error-outline"
           size={50}
@@ -376,75 +380,80 @@ const ShiftDetailsScreen = ({
         <TouchableOpacity style={styles.retryButton} onPress={fetchShiftData}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, dynamicStyles.title]}>
-          Shift Roster ({monthDisplay})
-        </Text>
-        <View style={styles.nav}>
-          <TouchableOpacity
-            onPress={() => handleMonthChange(-1)}
-            style={[styles.navButton, dynamicStyles.navButton]}
-          >
-            <MaterialIcons
-              name="chevron-left"
-              size={28}
-              color={theme === "dark" ? "#fff" : "#007bff"}
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={["top", "left", "right", "bottom"]}
+    >
+      <View style={[styles.container, dynamicStyles.container]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, dynamicStyles.title]}>
+            Shift Roster ({monthDisplay})
+          </Text>
+          <View style={styles.nav}>
+            <TouchableOpacity
+              onPress={() => handleMonthChange(-1)}
+              style={[styles.navButton, dynamicStyles.navButton]}
+            >
+              <MaterialIcons
+                name="chevron-left"
+                size={28}
+                color={theme === "dark" ? "#fff" : "#007bff"}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleMonthChange(1)}
+              style={[styles.navButton, dynamicStyles.navButton]}
+            >
+              <MaterialIcons
+                name="chevron-right"
+                size={28}
+                color={theme === "dark" ? "#fff" : "#007bff"}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={[styles.tableContainer, dynamicStyles.tableContainer]}>
+          <CustomLoader visible={loading && !refreshing} />
+          {!loading && (
+            <FlatList
+              data={shiftData}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              ListHeaderComponent={renderHeader}
+              stickyHeaderIndices={[0]}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={theme === "dark" ? "#fff" : "#007bff"}
+                />
+              }
+              ListEmptyComponent={() => (
+                <View
+                  style={[styles.emptyContainer, dynamicStyles.emptyContainer]}
+                >
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={50}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
+                    No shifts assigned for this month.
+                  </Text>
+                </View>
+              )}
             />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleMonthChange(1)}
-            style={[styles.navButton, dynamicStyles.navButton]}
-          >
-            <MaterialIcons
-              name="chevron-right"
-              size={28}
-              color={theme === "dark" ? "#fff" : "#007bff"}
-            />
-          </TouchableOpacity>
+          )}
         </View>
       </View>
-
-      <View style={[styles.tableContainer, dynamicStyles.tableContainer]}>
-        <CustomLoader visible={loading && !refreshing} />
-        {!loading && (
-          <FlatList
-            data={shiftData}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            ListHeaderComponent={renderHeader}
-            stickyHeaderIndices={[0]}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={theme === "dark" ? "#fff" : "#007bff"}
-              />
-            }
-            ListEmptyComponent={() => (
-              <View
-                style={[styles.emptyContainer, dynamicStyles.emptyContainer]}
-              >
-                <MaterialIcons
-                  name="calendar-today"
-                  size={50}
-                  color={colors.textSecondary}
-                />
-                <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
-                  No shifts assigned for this month.
-                </Text>
-              </View>
-            )}
-          />
-        )}
-      </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

@@ -10,6 +10,7 @@ import {
   Modal,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
 
 const SettingsScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
@@ -56,52 +57,57 @@ const SettingsScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, dynamicStyles.container]}
-      contentContainerStyle={styles.contentContainer}
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={["top", "bottom", "left", "right"]}
     >
-      {/* <View style={styles.sectionHeader}>
+      <ScrollView
+        style={[styles.container, dynamicStyles.container]}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {/* <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Setting Screen</Text>
       </View> */}
 
-      {/* Your notification list would go here */}
+        {/* Your notification list would go here */}
 
-      <View style={styles.logoutButtonContainer}>
-        <Button title="Logout" onPress={handleLogoutPress} color="#dc3545" />
-      </View>
+        <View style={styles.logoutButtonContainer}>
+          <Button title="Logout" onPress={handleLogoutPress} color="#dc3545" />
+        </View>
 
-      <Modal
-        visible={showLogoutConfirm}
-        transparent
-        animationType="fade"
-        onRequestClose={cancelLogout}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Logout
-            </Text>
-            <Text style={[styles.modalText, { color: colors.textSecondary }]}>
-              Are you sure you want to log out?
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, dynamicStyles.cancelButton]}
-                onPress={cancelLogout}
-              >
-                <Text style={dynamicStyles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.logoutButton]}
-                onPress={confirmLogout}
-              >
-                <Text style={styles.logoutButtonText}>Logout</Text>
-              </TouchableOpacity>
+        <Modal
+          visible={showLogoutConfirm}
+          transparent
+          animationType="fade"
+          onRequestClose={cancelLogout}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Logout
+              </Text>
+              <Text style={[styles.modalText, { color: colors.textSecondary }]}>
+                Are you sure you want to log out?
+              </Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, dynamicStyles.cancelButton]}
+                  onPress={cancelLogout}
+                >
+                  <Text style={dynamicStyles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.logoutButton]}
+                  onPress={confirmLogout}
+                >
+                  <Text style={styles.logoutButtonText}>Logout</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 

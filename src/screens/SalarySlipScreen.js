@@ -16,6 +16,7 @@ import {
   Linking,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { WebView } from "react-native-webview";
 import Toast from "react-native-toast-message";
@@ -341,7 +342,10 @@ const SalarySlipScreen = ({
   );
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <SafeAreaView
+      style={[styles.container, dynamicStyles.container]}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <CustomLoader visible={loading && !refreshing} />
       {/* Also show loader when downloading/viewing slip if needed, or rely on internal modal state */}
       <CustomLoader visible={downloading} />
@@ -507,7 +511,7 @@ const SalarySlipScreen = ({
           )}
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 

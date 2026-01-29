@@ -2,15 +2,16 @@
 // Basic login screen for the React Native app.
 // Integrates with Frappe's actual login API.
 
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
-import { loginUser } from '../utils/frappeApi';
+import React, { useState } from "react";
+import { View, Text, TextInput, Button, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { loginUser } from "../utils/frappeApi";
 import CustomLoader from "../Components/CustomLoader";
 import Toast from "react-native-toast-message";
 
 const AuthScreen = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -24,13 +25,15 @@ const AuthScreen = ({ onLoginSuccess }) => {
         text2: "Logged in successfully",
       });
       setTimeout(() => {
-         onLoginSuccess(); // Notify App.js that login was successful
+        onLoginSuccess(); // Notify App.js that login was successful
       }, 1000);
     } catch (err) {
       Toast.show({
         type: "error",
         text1: "Login Failed",
-        text2: err.message || "Login failed. Please check credentials and Frappe URL/CORS.",
+        text2:
+          err.message ||
+          "Login failed. Please check credentials and Frappe URL/CORS.",
       });
     } finally {
       setLoading(false);
@@ -38,7 +41,10 @@ const AuthScreen = ({ onLoginSuccess }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView
+      style={styles.container}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <CustomLoader visible={loading} />
       <Text style={styles.title}>Welcome to HR Dashboard</Text>
       <Text style={styles.subtitle}>Please login to continue</Text>
@@ -66,43 +72,43 @@ const AuthScreen = ({ onLoginSuccess }) => {
         disabled={loading}
         color="#007bff"
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: "#f0f2f5",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    color: '#333',
+    color: "#333",
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 30,
   },
   input: {
-    width: '100%',
+    width: "100%",
     padding: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 8,
     marginBottom: 15,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     fontSize: 16,
   },
   errorText: {
-    color: 'red',
+    color: "red",
     marginBottom: 15,
-    textAlign: 'center',
+    textAlign: "center",
   },
   loadingIndicator: {
     marginTop: 10,

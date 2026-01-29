@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createStackNavigator } from "@react-navigation/stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -51,8 +51,8 @@ const techbirdLogo = require("../assests/techbirdicon.png");
 
 const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
-const Stack = createNativeStackNavigator();
-const RootStack = createNativeStackNavigator();
+const Stack = createStackNavigator();
+const RootStack = createStackNavigator();
 
 import { useTheme } from "../context/ThemeContext";
 

@@ -14,6 +14,7 @@ import {
   Button,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { getResourceList } from "../utils/frappeApi";
@@ -386,7 +387,10 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   const activeData = activeTab === "my_claims" ? myClaims : claimsToApprove;
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <SafeAreaView
+      style={[styles.container, dynamicStyles.container]}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <CustomLoader visible={loading && !refreshing} />
       {renderHeader()}
       {error ? (
@@ -445,7 +449,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
           "remark",
         ]}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

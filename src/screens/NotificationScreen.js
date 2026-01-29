@@ -10,6 +10,7 @@ import {
   RefreshControl,
   InteractionManager,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { BellOff } from "lucide-react-native";
 import { useTheme } from "../context/ThemeContext";
@@ -187,118 +188,126 @@ const NotificationScreen = ({
   );
 
   return (
-    <ScrollView
-      style={[styles.container, dynamicStyles.container]}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary || "#007bff"}
-        />
-      }
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={["top", "bottom", "left", "right"]}
     >
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
-          Notifications
-        </Text>
-      </View>
-
-      <CustomLoader visible={loading && !refreshing} />
-
-      {error ? (
-        <View style={[styles.centered, dynamicStyles.centered]}>
-          <Text style={[styles.errorText, dynamicStyles.errorText]}>
-            {error}
+      <ScrollView
+        style={[styles.container, dynamicStyles.container]}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary || "#007bff"}
+          />
+        }
+      >
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>
+            Notifications
           </Text>
-          <TouchableOpacity
-            style={[
-              styles.retryButton,
-              { backgroundColor: colors.primary || "#007bff" },
-            ]}
-            onPress={onRefresh}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
         </View>
-      ) : generalNotifications.length > 0 ? (
-        generalNotifications.map((notif) => {
-          const rawTitle =
-            notif?.subject ||
-            notif?.email_content ||
-            notif?.document_name ||
-            notif?.name ||
-            "Notification";
-          const titleSegments = parseInlineSegments(rawTitle);
 
-          const created = notif?.creation
-            ? new Date(notif.creation).toLocaleString()
-            : "";
-          const isRead = Boolean(notif?.read);
-          return (
+        <CustomLoader visible={loading && !refreshing} />
+
+        {error ? (
+          <View style={[styles.centered, dynamicStyles.centered]}>
+            <Text style={[styles.errorText, dynamicStyles.errorText]}>
+              {error}
+            </Text>
             <TouchableOpacity
-              key={notif?.name}
               style={[
-                styles.card,
-                dynamicStyles.card,
-                !isRead && {
-                  borderColor: colors.primary || "#007bff",
-                  borderWidth: 1,
-                },
+                styles.retryButton,
+                { backgroundColor: colors.primary || "#007bff" },
               ]}
-              onPress={() => toggleNotificationRead(notif)}
-              activeOpacity={0.8}
+              onPress={onRefresh}
             >
-              <View style={styles.cardTopRow}>
-                <Text
-                  style={[styles.cardTitle, dynamicStyles.cardTitle]}
-                  numberOfLines={2}
-                >
-                  {titleSegments.length > 0
-                    ? titleSegments.map((seg, i) => (
-                        <Text key={i} style={seg.bold ? styles.boldText : null}>
-                          {seg.text + " "}
-                        </Text>
-                      ))
-                    : cleanHtmlText(rawTitle)}
-                </Text>
-                <View
-                  style={[
-                    styles.badge,
-                    isRead
-                      ? dynamicStyles.badgeRead
-                      : dynamicStyles.badgeUnread,
-                  ]}
-                >
-                  <Text style={[styles.badgeText, dynamicStyles.badgeText]}>
-                    {isRead ? "Read" : "Unread"}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.cardMeta, dynamicStyles.cardMeta]}>
-                {(notif?.document_type || "General") +
-                  (created ? ` • ${created}` : "")}
-              </Text>
-              {userInfo?.name ? (
-                <Text style={[styles.cardMeta, dynamicStyles.cardMeta]}>
-                  User: {userInfo.name}
-                </Text>
-              ) : null}
+              <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
-          );
-        })
-      ) : (
-        <View style={styles.emptyState}>
-          <BellOff color={colors.textSecondary || "red"} size={60} />
-          <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>
-            No New notifications
-          </Text>
-          <Text style={[styles.emptySubtitle, dynamicStyles.emptySubtitle]}>
-            Looks like you haven’t received any notifications.
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+          </View>
+        ) : generalNotifications.length > 0 ? (
+          generalNotifications.map((notif) => {
+            const rawTitle =
+              notif?.subject ||
+              notif?.email_content ||
+              notif?.document_name ||
+              notif?.name ||
+              "Notification";
+            const titleSegments = parseInlineSegments(rawTitle);
+
+            const created = notif?.creation
+              ? new Date(notif.creation).toLocaleString()
+              : "";
+            const isRead = Boolean(notif?.read);
+            return (
+              <TouchableOpacity
+                key={notif?.name}
+                style={[
+                  styles.card,
+                  dynamicStyles.card,
+                  !isRead && {
+                    borderColor: colors.primary || "#007bff",
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={() => toggleNotificationRead(notif)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.cardTopRow}>
+                  <Text
+                    style={[styles.cardTitle, dynamicStyles.cardTitle]}
+                    numberOfLines={2}
+                  >
+                    {titleSegments.length > 0
+                      ? titleSegments.map((seg, i) => (
+                          <Text
+                            key={i}
+                            style={seg.bold ? styles.boldText : null}
+                          >
+                            {seg.text + " "}
+                          </Text>
+                        ))
+                      : cleanHtmlText(rawTitle)}
+                  </Text>
+                  <View
+                    style={[
+                      styles.badge,
+                      isRead
+                        ? dynamicStyles.badgeRead
+                        : dynamicStyles.badgeUnread,
+                    ]}
+                  >
+                    <Text style={[styles.badgeText, dynamicStyles.badgeText]}>
+                      {isRead ? "Read" : "Unread"}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.cardMeta, dynamicStyles.cardMeta]}>
+                  {(notif?.document_type || "General") +
+                    (created ? ` • ${created}` : "")}
+                </Text>
+                {userInfo?.name ? (
+                  <Text style={[styles.cardMeta, dynamicStyles.cardMeta]}>
+                    User: {userInfo.name}
+                  </Text>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View style={styles.emptyState}>
+            <BellOff color={colors.textSecondary || "red"} size={60} />
+            <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>
+              No New notifications
+            </Text>
+            <Text style={[styles.emptySubtitle, dynamicStyles.emptySubtitle]}>
+              Looks like you haven’t received any notifications.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 

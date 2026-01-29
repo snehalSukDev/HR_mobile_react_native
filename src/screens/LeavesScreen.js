@@ -15,6 +15,7 @@ import {
   RefreshControl,
   FlatList,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getResource, getResourceList } from "../utils/frappeApi";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
@@ -517,7 +518,10 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   );
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <SafeAreaView
+      style={[styles.container, dynamicStyles.container]}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <CustomLoader visible={loading && !refreshing} />
       {renderHeader()}
 
@@ -604,7 +608,7 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
         title="Leave Application"
         hiddenFields={["leave_balance", "salary_slip", "letter_head"]}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

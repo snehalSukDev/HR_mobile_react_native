@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { format } from "date-fns";
 import { useTheme } from "../context/ThemeContext";
 import Toast from "react-native-toast-message";
@@ -181,7 +182,10 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
   }, [fetchProfile, fetchCheckins]);
 
   return (
-    <>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <CustomLoader visible={loading} />
       {!loading && !employeeProfile ? (
         <View style={[styles.centered, dynamicStyles.centered]}>
@@ -479,7 +483,7 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
           </View>
         </ScrollView>
       ) : null}
-    </>
+    </SafeAreaView>
   );
 };
 

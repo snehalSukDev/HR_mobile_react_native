@@ -15,6 +15,7 @@ import {
   ScrollView,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { getResource, getResourceList } from "../utils/frappeApi";
 import {
@@ -514,7 +515,10 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   );
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <SafeAreaView
+      style={[styles.container, dynamicStyles.container]}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <CustomLoader
         visible={
           (loading && !refreshing && normalizedViewType === "list") ||
@@ -748,7 +752,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           fetchRecentAttendance(true);
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
