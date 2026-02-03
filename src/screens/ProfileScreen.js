@@ -184,7 +184,7 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
-      edges={["top", "bottom", "left", "right"]}
+      edges={["left", "right"]}
     >
       <CustomLoader visible={loading} />
       {!loading && !employeeProfile ? (

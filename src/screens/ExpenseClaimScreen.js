@@ -389,7 +389,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
   return (
     <SafeAreaView
       style={[styles.container, dynamicStyles.container]}
-      edges={["top", "bottom", "left", "right"]}
+      edges={["left", "right"]}
     >
       <CustomLoader visible={loading && !refreshing} />
       {renderHeader()}

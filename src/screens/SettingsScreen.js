@@ -59,7 +59,7 @@ const SettingsScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
-      edges={["top", "bottom", "left", "right"]}
+      edges={["left", "right"]}
     >
       <ScrollView
         style={[styles.container, dynamicStyles.container]}

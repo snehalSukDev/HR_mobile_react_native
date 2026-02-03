@@ -425,15 +425,11 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   };
 
   const renderItem = ({ item }) => {
-    const { bg: statusColor } = getStatusColors(item.status);
-
+    const { bg, text, title } = getStatusColors(item.status);
     return (
       <TouchableOpacity
         style={[styles.card, dynamicStyles.card]}
-        onPress={() => {
-          setSelectedAttendanceDetails(item);
-          setOpen(true);
-        }}
+        activeOpacity={0.85}
       >
         <View style={styles.cardRow}>
           <View style={styles.iconContainer}>
@@ -441,14 +437,25 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           </View>
           <View style={styles.cardContent}>
             <Text style={[styles.employeeName, dynamicStyles.text]}>
-              {item.employee_name}
+              {title}
             </Text>
             <Text style={[styles.dateText, dynamicStyles.textSecondary]}>
               {formatDate(item.attendance_date)}
             </Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <Text style={styles.statusText}>{item.status}</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: bg,
+                borderColor: text + "55",
+                borderWidth: 1, // Add border to match LeavesScreen style
+              },
+            ]}
+          >
+            <Text style={[styles.statusText, { color: text }]}>
+              {item.status}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -517,7 +524,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
   return (
     <SafeAreaView
       style={[styles.container, dynamicStyles.container]}
-      edges={["top", "bottom", "left", "right"]}
+      edges={["left", "right"]}
     >
       <CustomLoader
         visible={

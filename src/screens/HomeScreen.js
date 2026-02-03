@@ -71,8 +71,8 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
       sectionCard: { backgroundColor: colors.card, borderColor: colors.border },
       sectionTitle: { color: colors.text },
       sectionText: { color: colors.textSecondary },
-      quickTitle: { color: colors.textSecondary },
-      quickIconLabel: { color: colors.textSecondary },
+      quickTitle: { color: "#FFFFFF" },
+      quickIconLabel: { color: "#FFFFFF" },
       noDataText: { color: colors.text },
     }),
     [colors],
@@ -527,7 +527,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   return (
     <SafeAreaView
       style={[styles.safeArea, dynamicStyles.safeArea]}
-      edges={["right", "bottom", "left"]}
+      edges={["right", "left"]}
     >
       <StatusBar
         translucent
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.6)",
   },
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, padding: 16, marginBottom: 10 },
   headerCard: {
     backgroundColor: "#213465",
     borderRadius: 16,

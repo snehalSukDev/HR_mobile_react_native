@@ -691,7 +691,7 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
   return (
     <SafeAreaView
       style={[styles.container, dynamicStyles.container]}
-      edges={["top", "bottom", "left", "right"]}
+      edges={["left", "right"]}
     >
       {docTypeTab === "leave" ? (
         <FlatList

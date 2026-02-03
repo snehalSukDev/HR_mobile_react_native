@@ -368,8 +368,12 @@ const ShiftDetailsScreen = ({
   if (error) {
     return (
       <SafeAreaView
-        style={[styles.centered, dynamicStyles.centered]}
-        edges={["top", "bottom", "left", "right"]}
+        style={[
+          styles.centered,
+          dynamicStyles.centered,
+          { paddingTop: insets.top },
+        ]}
+        edges={["left", "right", "bottom"]}
       >
         <MaterialIcons
           name="error-outline"
@@ -387,7 +391,7 @@ const ShiftDetailsScreen = ({
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
-      edges={["top", "left", "right", "bottom"]}
+      edges={["left", "right", "bottom"]}
     >
       <View style={[styles.container, dynamicStyles.container]}>
         <View style={styles.header}>

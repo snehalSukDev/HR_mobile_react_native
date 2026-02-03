@@ -344,7 +344,7 @@ const SalarySlipScreen = ({
   return (
     <SafeAreaView
       style={[styles.container, dynamicStyles.container]}
-      edges={["top", "bottom", "left", "right"]}
+      edges={["left", "right"]}
     >
       <CustomLoader visible={loading && !refreshing} />
       {/* Also show loader when downloading/viewing slip if needed, or rely on internal modal state */}
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f7fa", // Match AttendanceScreen
-    padding: 16,
+    padding: 15,
   },
   centered: {
     flex: 1,
