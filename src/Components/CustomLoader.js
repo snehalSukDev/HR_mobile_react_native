@@ -1,11 +1,23 @@
-import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Modal, Image, Animated } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  StyleSheet,
+  Modal,
+  Animated,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+} from "react-native";
 
-const CustomLoader = ({ visible }) => {
+const CustomLoader = ({ visible, onClose }) => {
+  const [internalVisible, setInternalVisible] = useState(visible);
   const opacity = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    if (visible) {
+    setInternalVisible(visible);
+  }, [visible]);
+
+  useEffect(() => {
+    if (internalVisible) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(opacity, {
@@ -23,21 +35,37 @@ const CustomLoader = ({ visible }) => {
     } else {
       opacity.setValue(0.5);
     }
-  }, [visible]);
+  }, [internalVisible, opacity]);
 
-  if (!visible) return null;
+  const handleClose = () => {
+    setInternalVisible(false);
+    if (onClose) onClose();
+  };
+
+  if (!internalVisible) return null;
 
   return (
-    <Modal transparent={true} animationType="none" visible={visible}>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <Animated.Image
-            source={require("../assests/techbirdbg.png")}
-            style={[styles.image, { opacity }]}
-            resizeMode="contain"
-          />
-        </View>
-      </View>
+    <Modal
+      transparent={true}
+      animationType="none"
+      visible={internalVisible}
+      onRequestClose={handleClose}
+    >
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={handleClose}
+      >
+        <TouchableWithoutFeedback>
+          <View style={styles.container}>
+            <Animated.Image
+              source={require("../assests/techbirdbg.png")}
+              style={[styles.image, { opacity }]}
+              resizeMode="contain"
+            />
+          </View>
+        </TouchableWithoutFeedback>
+      </TouchableOpacity>
     </Modal>
   );
 };

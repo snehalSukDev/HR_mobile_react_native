@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { createDrawerNavigator } from "@react-navigation/drawer";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +30,7 @@ import {
   Modal,
   Text,
   Image,
+  TouchableWithoutFeedback,
 } from "react-native";
 
 // Screens
@@ -50,21 +50,10 @@ import AttendanceScreen from "../screens/AttendanceScreen";
 const techbirdLogo = require("../assests/techbirdicon.png");
 
 const Tab = createBottomTabNavigator();
-const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 const RootStack = createStackNavigator();
 
 import { useTheme } from "../context/ThemeContext";
-
-function RedirectApprovals({ navigation }) {
-  React.useEffect(() => {
-    navigation.navigate("Close", {
-      screen: "Home",
-      params: { screen: "Approvals" },
-    });
-  }, [navigation]);
-  return null;
-}
 
 // Stack for Home tab (includes Expense Claim, Shift Roaster, etc.)
 function HomeStack({
@@ -80,111 +69,6 @@ function HomeStack({
       <Stack.Screen name="HomeMain" options={{ title: "Home" }}>
         {(props) => (
           <HomeScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Stack.Screen>
-      <Stack.Screen
-        name="Approvals"
-        options={({ navigation }) => ({
-          title: "Approvals",
-          headerLeft: () => (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={{ paddingHorizontal: 4, paddingVertical: 4 }}
-              >
-                <ChevronLeft size={28} color={colors.text} />
-              </TouchableOpacity>
-              <Image
-                source={techbirdLogo}
-                style={{
-                  width: 28,
-                  height: 28,
-                  marginLeft: 6,
-                  borderRadius: 4,
-                }}
-                resizeMode="contain"
-              />
-            </View>
-          ),
-        })}
-      >
-        {(props) => (
-          <ApprovalScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Stack.Screen>
-      <Stack.Screen
-        name="Expense Claim"
-        options={({ navigation }) => ({
-          title: "Expense Claim",
-          headerLeft: () => (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={{ paddingHorizontal: 4, paddingVertical: 4 }}
-              >
-                <ChevronLeft size={28} color={colors.text} />
-              </TouchableOpacity>
-              <Image
-                source={techbirdLogo}
-                style={{
-                  width: 28,
-                  height: 28,
-                  marginLeft: 6,
-                  borderRadius: 4,
-                }}
-                resizeMode="contain"
-              />
-            </View>
-          ),
-        })}
-      >
-        {(props) => (
-          <ExpenseClaimScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Stack.Screen>
-      <Stack.Screen
-        name="Announcement"
-        options={({ navigation }) => ({
-          title: "Announcement",
-          headerLeft: () => (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={{ paddingHorizontal: 4, paddingVertical: 4 }}
-              >
-                <ChevronLeft size={28} color={colors.text} />
-              </TouchableOpacity>
-              <Image
-                source={techbirdLogo}
-                style={{
-                  width: 28,
-                  height: 28,
-                  marginLeft: 6,
-                  borderRadius: 4,
-                }}
-                resizeMode="contain"
-              />
-            </View>
-          ),
-        })}
-      >
-        {(props) => (
-          <AnnouncementScreen
             {...props}
             currentUserEmail={currentUserEmail}
             currentEmployeeId={currentEmployeeId}
@@ -238,31 +122,6 @@ function HomeStack({
           />
         )}
       </Stack.Screen>
-    </Stack.Navigator>
-  );
-}
-
-// Stack for Approval and related screens
-function ApprovalStack({
-  navigation,
-  currentUserEmail,
-  currentEmployeeId,
-  onLogout,
-}) {
-  const screenOptions = createSharedOptions(onLogout, currentUserEmail);
-  return (
-    <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="Approvals" options={{ title: "Approvals" }}>
-        {(props) => (
-          <ApprovalScreen
-            {...props}
-            currentUserEmail={currentUserEmail}
-            currentEmployeeId={currentEmployeeId}
-            onLogout={onLogout}
-          />
-        )}
-      </Stack.Screen>
-      {/* Add more screens like ApprovalDetails, RejectionReasons etc. */}
     </Stack.Navigator>
   );
 }
@@ -337,86 +196,89 @@ function BottomTabs({
         animationType="slide"
         onRequestClose={() => setShowMoreModal(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View
-            style={[
-              styles.modalCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Select an option
-            </Text>
-            <View style={styles.modalOptions}>
-              <TouchableOpacity
-                style={[
-                  styles.modalOption,
-                  {
-                    backgroundColor: isDark ? "#333" : "#f7f7f7",
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() => {
-                  setShowMoreModal(false);
-                  navigation.navigate("Close", {
-                    screen: "Home",
-                    params: { screen: "Approvals" },
-                  });
-                }}
-              >
-                <View
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowMoreModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View
+              style={[
+                styles.modalCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Select an option
+              </Text>
+              <View style={styles.modalOptions}>
+                <TouchableOpacity
                   style={[
-                    styles.optionIconWrap,
+                    styles.modalOption,
                     {
-                      backgroundColor: isDark ? "#444" : "#e9ecef",
+                      backgroundColor: isDark ? "#333" : "#f7f7f7",
                       borderColor: colors.border,
                     },
                   ]}
+                  onPress={() => {
+                    setShowMoreModal(false);
+                    navigation.navigate("Main", { screen: "Approvals" });
+                  }}
                 >
-                  <CheckCheck size={20} color={colors.primary || "#271085"} />
-                </View>
-                <Text style={[styles.optionText, { color: colors.text }]}>
-                  Approval
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalOption,
-                  {
-                    backgroundColor: isDark ? "#333" : "#f7f7f7",
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() => {
-                  setShowMoreModal(false);
-                  navigation.navigate("Close", {
-                    screen: "Home",
-                    params: { screen: "Expense Claim" },
-                  });
-                }}
-              >
-                <View
+                  <View
+                    style={[
+                      styles.optionIconWrap,
+                      {
+                        backgroundColor: isDark ? "#444" : "#e9ecef",
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <CheckCheck size={20} color={colors.primary || "#271085"} />
+                  </View>
+                  <Text style={[styles.optionText, { color: colors.text }]}>
+                    Approval
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[
-                    styles.optionIconWrap,
+                    styles.modalOption,
                     {
-                      backgroundColor: isDark ? "#444" : "#e9ecef",
+                      backgroundColor: isDark ? "#333" : "#f7f7f7",
                       borderColor: colors.border,
                     },
                   ]}
+                  onPress={() => {
+                    setShowMoreModal(false);
+                    navigation.navigate("Main", { screen: "Expense Claim" });
+                  }}
                 >
-                  <DollarSign size={20} color={colors.primary || "#271085"} />
-                </View>
-                <Text style={[styles.optionText, { color: colors.text }]}>
-                  Expense
-                </Text>
-              </TouchableOpacity>
+                  <View
+                    style={[
+                      styles.optionIconWrap,
+                      {
+                        backgroundColor: isDark ? "#444" : "#e9ecef",
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <DollarSign size={20} color={colors.primary || "#271085"} />
+                  </View>
+                  <Text style={[styles.optionText, { color: colors.text }]}>
+                    Expense
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
       <Tab.Navigator
         initialRouteName={initialTab || "Home"}
-        screenOptions={screenOptions}
+        screenOptions={{
+          ...screenOptions,
+          unmountOnBlur: true,
+        }}
       >
         <Tab.Screen
           name="Home"
@@ -507,6 +369,75 @@ function BottomTabs({
           )}
         </Tab.Screen>
 
+        {/* Hidden Tabs for Navigation Safety */}
+        <Tab.Screen
+          name="Expense Claim"
+          options={{
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        >
+          {(props) => (
+            <ExpenseClaimScreen
+              {...props}
+              currentUserEmail={currentUserEmail}
+              currentEmployeeId={currentEmployeeId}
+              onLogout={onLogout}
+            />
+          )}
+        </Tab.Screen>
+
+        <Tab.Screen
+          name="Announcement"
+          options={{
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        >
+          {(props) => (
+            <AnnouncementScreen
+              {...props}
+              currentUserEmail={currentUserEmail}
+              currentEmployeeId={currentEmployeeId}
+              onLogout={onLogout}
+            />
+          )}
+        </Tab.Screen>
+
+        <Tab.Screen
+          name="Approvals"
+          options={{
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        >
+          {(props) => (
+            <ApprovalScreen
+              {...props}
+              currentUserEmail={currentUserEmail}
+              currentEmployeeId={currentEmployeeId}
+              onLogout={onLogout}
+            />
+          )}
+        </Tab.Screen>
+
+        <Tab.Screen
+          name="Profile"
+          options={{
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        >
+          {(props) => (
+            <ProfileScreen
+              {...props}
+              currentUserEmail={currentUserEmail}
+              currentEmployeeId={currentEmployeeId}
+              onLogout={onLogout}
+            />
+          )}
+        </Tab.Screen>
+
         <Tab.Screen
           name="More"
           component={View} // dummy component
@@ -536,77 +467,13 @@ export default function AppNavigator({
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       {/* MAIN APP */}
       <RootStack.Screen name="Main">
-        {() => (
-          <Drawer.Navigator screenOptions={{ headerShown: false }}>
-            <Drawer.Screen
-              name="Close"
-              options={{
-                drawerIcon: () => <ChevronLeft size={20} color={colors.text} />,
-              }}
-            >
-              {(props) => (
-                <BottomTabs
-                  {...props}
-                  currentUserEmail={currentUserEmail}
-                  currentEmployeeId={currentEmployeeId}
-                  onLogout={onLogout}
-                />
-              )}
-            </Drawer.Screen>
-
-            {/* <Drawer.Screen
-              name="Notifications"
-              options={{ drawerIcon: () => <Bell size={20} color="#000" /> }}
-            >
-              {(props) => (
-                <NotificationScreen
-                  {...props}
-                  currentUserEmail={currentUserEmail}
-                  currentEmployeeId={currentEmployeeId}
-                  onLogout={onLogout}
-                />
-              )}
-            </Drawer.Screen> */}
-
-            {/* <Drawer.Screen
-              name="Settings"
-              options={{
-                drawerIcon: () => <Settings size={20} color="#000" />,
-              }}
-            >
-              {(props) => (
-                <SettingsScreen
-                  {...props}
-                  currentUserEmail={currentUserEmail}
-                  currentEmployeeId={currentEmployeeId}
-                  onLogout={onLogout}
-                />
-              )}
-            </Drawer.Screen> */}
-
-            {/* <Drawer.Screen
-              name="Theme"
-              options={{ drawerIcon: () => <Palette size={20} color="#000" /> }}
-            >
-              {(props) => (
-                <SettingsScreen
-                  {...props}
-                  currentUserEmail={currentUserEmail}
-                  currentEmployeeId={currentEmployeeId}
-                  onLogout={onLogout}
-                />
-              )}
-            </Drawer.Screen>
-
-            <Drawer.Screen
-              name="Approvals"
-              options={{
-                drawerIcon: () => <CheckCheck size={20} color="#000" />,
-              }}
-            >
-              {(props) => <RedirectApprovals {...props} />}
-            </Drawer.Screen> */}
-          </Drawer.Navigator>
+        {(props) => (
+          <BottomTabs
+            {...props}
+            currentUserEmail={currentUserEmail}
+            currentEmployeeId={currentEmployeeId}
+            onLogout={onLogout}
+          />
         )}
       </RootStack.Screen>
 

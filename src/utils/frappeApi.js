@@ -62,10 +62,10 @@ async function frappeFetch(path, options = {}) {
         .catch(() => ({ message: response.statusText }));
       const is404 = response.status === 404;
       const logFn = is404 ? console.warn : console.error;
-      logFn(
-        `[FrappeAPI] API Error (${response.status} ${response.statusText}):`,
-        errorData,
-      );
+      // logFn(
+      //   `[FrappeAPI] API Error (${response.status} ${response.statusText}):`,
+      //   errorData,
+      // );
       throw new Error(
         errorData.message ||
           `API request failed with status ${response.status}`,
@@ -75,7 +75,7 @@ async function frappeFetch(path, options = {}) {
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error(`[FrappeAPI] Network/Fetch Error for ${path}:`, error);
+    // console.error(`[FrappeAPI] Network/Fetch Error for ${path}:`, error);
     throw error;
   }
 }
@@ -97,7 +97,7 @@ export async function loginUser(email, password) {
       const errorData = await response
         .json()
         .catch(() => ({ message: response.statusText }));
-      console.error("[FrappeAPI] Login Error:", errorData);
+      // console.error("[FrappeAPI] Login Error:", errorData);
       throw new Error(
         errorData.message || `Login failed with status ${response.status}`,
       );
@@ -112,7 +112,7 @@ export async function loginUser(email, password) {
       );
     }
   } catch (error) {
-    console.error("[FrappeAPI] Network/Login Fetch Error:", error);
+    // console.error("[FrappeAPI] Network/Login Fetch Error:", error);
     throw new Error(`Login failed: ${error.message || "Network error"}`);
   }
 }
@@ -264,7 +264,7 @@ export async function getResourceList(doctype, params = {}) {
     }
     return data.data;
   } catch (error) {
-    console.error(`Error getting resource list for ${doctype}:`, error);
+    // console.error(`Error getting resource list for ${doctype}:`, error);
     throw error;
   }
 }
@@ -294,7 +294,7 @@ export async function getResource(
     }
     return data.data;
   } catch (error) {
-    console.error(`Error getting resource ${name} from ${doctype}:`, error);
+    // console.error(`Error getting resource ${name} from ${doctype}:`, error);
     throw error;
   }
 }
@@ -360,7 +360,7 @@ export async function logoutUser() {
 
     return { success: true, message: "Logout successful" };
   } catch (error) {
-    console.error("[FrappeAPI] Network/Logout Fetch Error:", error);
+    // console.error("[FrappeAPI] Network/Logout Fetch Error:", error);
     throw new Error(`Logout failed: ${error.message || "Network error"}`);
   }
 }

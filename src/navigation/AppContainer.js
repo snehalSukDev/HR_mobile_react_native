@@ -46,7 +46,12 @@ const AppContainer = () => {
             setCurrentUserEmail(user.email);
           }
           // ✅ FETCH EMPLOYEE DETAILS BY EMAIL
-          const emp = await fetchEmployeeDetails(user.email, true);
+          let emp;
+          try {
+            emp = await fetchEmployeeDetails(user.email, true);
+          } catch (err) {
+            console.warn("Failed to fetch employee details:", err);
+          }
 
           if (emp && emp.name) {
             if (isMountedRef.current) {
@@ -120,7 +125,7 @@ const AppContainer = () => {
         }
       }
     } catch (error) {
-      console.error("Error fetching user details after login:", error);
+      // console.error("Error fetching user details after login:", error);
       if (isMountedRef.current) {
         setIsAuthenticated(true);
       }

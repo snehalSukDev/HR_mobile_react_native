@@ -13,8 +13,10 @@ import {
   Button,
   TouchableOpacity,
   RefreshControl,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { format } from "date-fns";
 import { useTheme } from "../context/ThemeContext";
 import Toast from "react-native-toast-message";
@@ -116,20 +118,37 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
     fetchProfile();
   }, [fetchProfile]);
 
+  useFocusEffect(
+    useCallback(() => {
+      InteractionManager.runAfterInteractions(() => {
+        if (employeeProfile?.name) {
+          fetchCheckins();
+        }
+      });
+    }, [employeeProfile?.name, fetchCheckins]),
+  );
+
   const [checkins, setCheckins] = useState([]);
-  const fetchCheckins = useCallback(async (forceRefresh = false) => {
-    const data = await getResourceList("Employee Checkin", {
-      filters: JSON.stringify([["time", "Timespan", "today"]]),
-      fields: JSON.stringify(["log_type"]),
-      order_by: "time asc",
-      cache: true,
-      cacheTTL: 5 * 60 * 1000, // 5 minutes
-      forceRefresh: forceRefresh,
-    });
-    if (isMountedRef.current) {
-      setCheckins(data || []);
-    }
-  }, []);
+  const fetchCheckins = useCallback(
+    async (forceRefresh = false) => {
+      if (!employeeProfile?.name) return;
+      const data = await getResourceList("Employee Checkin", {
+        filters: JSON.stringify([
+          ["employee", "=", employeeProfile.name],
+          ["time", "Timespan", "today"],
+        ]),
+        fields: JSON.stringify(["log_type"]),
+        order_by: "time asc",
+        cache: true,
+        cacheTTL: 5 * 60 * 1000, // 5 minutes
+        forceRefresh: forceRefresh,
+      });
+      if (isMountedRef.current) {
+        setCheckins(data || []);
+      }
+    },
+    [employeeProfile?.name],
+  );
 
   useEffect(() => {
     fetchCheckins();
@@ -140,7 +159,17 @@ const ProfileScreen = ({ currentUserEmail, onLogout }) => {
 
   const handleCheck = async (logType) => {
     try {
-      const { latitude, longitude } = await getGeolocation();
+      // Add timeout for geolocation
+      const locationPromise = getGeolocation();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Location timeout")), 10000),
+      );
+
+      const { latitude, longitude } = await Promise.race([
+        locationPromise,
+        timeoutPromise,
+      ]);
+
       const doc = {
         doctype: "Employee Checkin",
         employee: employeeProfile?.name,

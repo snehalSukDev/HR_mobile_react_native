@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   ImageBackground,
   Animated,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Eye, EyeOff } from "lucide-react-native";
@@ -142,7 +143,9 @@ const LoginScreen = ({ onLoginSuccess }) => {
             text2: "Logged in successfully",
           });
           setTimeout(() => {
-            onLoginSuccess();
+            InteractionManager.runAfterInteractions(() => {
+              onLoginSuccess();
+            });
           }, 1000);
         }
       } else {

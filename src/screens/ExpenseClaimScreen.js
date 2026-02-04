@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   Button,
   Platform,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -214,7 +215,7 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
           setClaimsToApprove(approvalData || []);
         }
       } catch (err) {
-        console.error("Error fetching expense claims:", err);
+        // console.error("Error fetching expense claims:", err);
         if (isMountedRef.current) {
           setError("Failed to load expense claims.");
           Toast.show({
@@ -235,7 +236,10 @@ const ExpenseClaimScreen = ({ currentEmployeeId }) => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchClaims();
+      const task = InteractionManager.runAfterInteractions(() => {
+        fetchClaims();
+      });
+      return () => task.cancel();
     }, [fetchClaims]),
   );
 

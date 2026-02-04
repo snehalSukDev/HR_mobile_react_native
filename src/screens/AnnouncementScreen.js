@@ -15,6 +15,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -185,7 +186,7 @@ const AnnouncementScreen = () => {
           setItems(Array.isArray(data) ? data : []);
         }
       } catch (err) {
-        console.error("Error fetching announcements:", err);
+        // console.error("Error fetching announcements:", err);
         if (isMountedRef.current) {
           const errString = String(err);
           if (
@@ -388,64 +389,70 @@ const AnnouncementScreen = () => {
         animationType="slide"
         onRequestClose={() => setSelectedAnnouncement(null)}
       >
-        <View style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}>
-          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                {selectedAnnouncement?.title ||
-                  selectedAnnouncement?.subject ||
-                  "Announcement"}
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedAnnouncement(null)}>
-                <MaterialIcons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={[styles.modalBody, dynamicStyles.modalBody]}>
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                  Status
+        <TouchableOpacity
+          style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}
+          activeOpacity={1}
+          onPress={() => setSelectedAnnouncement(null)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                  {selectedAnnouncement?.title ||
+                    selectedAnnouncement?.subject ||
+                    "Announcement"}
                 </Text>
-                <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                  {selectedAnnouncement?.status || "Draft"}
-                </Text>
+                <TouchableOpacity onPress={() => setSelectedAnnouncement(null)}>
+                  <MaterialIcons name="close" size={22} color={colors.text} />
+                </TouchableOpacity>
               </View>
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                  Date
-                </Text>
-                <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                  {formatDate(
-                    selectedAnnouncement?.start_date ||
-                      selectedAnnouncement?.end_date,
-                  )}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.detailRow,
-                  {
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    marginTop: 10,
-                  },
-                ]}
-              >
-                <Text
+              <ScrollView style={[styles.modalBody, dynamicStyles.modalBody]}>
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    Status
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
+                    {selectedAnnouncement?.status || "Draft"}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
+                    Date
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
+                    {formatDate(
+                      selectedAnnouncement?.start_date ||
+                        selectedAnnouncement?.end_date,
+                    )}
+                  </Text>
+                </View>
+                <View
                   style={[
-                    styles.detailLabel,
-                    dynamicStyles.detailLabel,
-                    { marginBottom: 4 },
+                    styles.detailRow,
+                    {
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      marginTop: 10,
+                    },
                   ]}
                 >
-                  Content
-                </Text>
-                <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                  {cleanHtmlText(selectedAnnouncement?.content || "")}
-                </Text>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
+                  <Text
+                    style={[
+                      styles.detailLabel,
+                      dynamicStyles.detailLabel,
+                      { marginBottom: 4 },
+                    ]}
+                  >
+                    Content
+                  </Text>
+                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
+                    {cleanHtmlText(selectedAnnouncement?.content || "")}
+                  </Text>
+                </View>
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );

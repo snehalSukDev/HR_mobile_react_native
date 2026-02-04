@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  Modal,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -21,27 +22,30 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
   const { colors, theme } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const dynamicStyles = useMemo(() => ({
-    label: { color: colors.text },
-    input: {
-      borderColor: colors.border,
-      backgroundColor: colors.card,
-      color: colors.text,
-    },
-    checkLabel: { color: colors.text },
-    optionPill: {
-      backgroundColor: theme === "dark" ? "#333" : "#f0f0f0",
-      borderColor: colors.border,
-    },
-    optionPillActive: {
-      backgroundColor: theme === "dark" ? "#0056b3" : "#e6f0ff",
-      borderColor: colors.primary,
-    },
-    optionText: { color: colors.textSecondary },
-    optionTextActive: { color: colors.primary },
-    dateText: { color: value ? colors.text : colors.textSecondary },
-    placeholder: colors.textSecondary,
-  }), [colors, theme, value]);
+  const dynamicStyles = useMemo(
+    () => ({
+      label: { color: colors.text },
+      input: {
+        borderColor: colors.border,
+        backgroundColor: colors.card,
+        color: colors.text,
+      },
+      checkLabel: { color: colors.text },
+      optionPill: {
+        backgroundColor: theme === "dark" ? "#333" : "#f0f0f0",
+        borderColor: colors.border,
+      },
+      optionPillActive: {
+        backgroundColor: theme === "dark" ? "#0056b3" : "#e6f0ff",
+        borderColor: colors.primary,
+      },
+      optionText: { color: colors.textSecondary },
+      optionTextActive: { color: colors.primary },
+      dateText: { color: value ? colors.text : colors.textSecondary },
+      placeholder: colors.textSecondary,
+    }),
+    [colors, theme, value],
+  );
 
   // Helper to handle simple text changes
   const handleChange = (val) => {
@@ -64,7 +68,9 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
             size={24}
             color={colors.primary}
           />
-          <Text style={[styles.checkLabel, dynamicStyles.checkLabel]}>{field.label}</Text>
+          <Text style={[styles.checkLabel, dynamicStyles.checkLabel]}>
+            {field.label}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -90,7 +96,10 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
               style={[
                 styles.optionPill,
                 dynamicStyles.optionPill,
-                value === opt && [styles.optionPillActive, dynamicStyles.optionPillActive],
+                value === opt && [
+                  styles.optionPillActive,
+                  dynamicStyles.optionPillActive,
+                ],
               ]}
               onPress={() => handleChange(opt)}
             >
@@ -98,7 +107,10 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
                 style={[
                   styles.optionText,
                   dynamicStyles.optionText,
-                  value === opt && [styles.optionTextActive, dynamicStyles.optionTextActive],
+                  value === opt && [
+                    styles.optionTextActive,
+                    dynamicStyles.optionTextActive,
+                  ],
                 ]}
               >
                 {opt}
@@ -117,28 +129,84 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
           {field.label} {field.reqd ? "*" : ""}
         </Text>
         <TouchableOpacity
-          style={[styles.input, dynamicStyles.input, error && styles.inputError]}
+          style={[
+            styles.input,
+            dynamicStyles.input,
+            error && styles.inputError,
+          ]}
           onPress={() => setShowDatePicker(true)}
         >
           <Text style={dynamicStyles.dateText}>
             {value ? String(value) : "Select date"}
           </Text>
         </TouchableOpacity>
-        {showDatePicker && (
-          <DateTimePicker
-            mode="date"
-            value={safeDate(value)}
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            themeVariant={theme}
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(false);
-              if (selectedDate) {
-                const formatted = format(selectedDate, "yyyy-MM-dd");
-                handleChange(formatted);
-              }
-            }}
-          />
-        )}
+        {showDatePicker &&
+          (Platform.OS === "ios" ? (
+            <Modal
+              transparent
+              animationType="fade"
+              visible={showDatePicker}
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <TouchableOpacity
+                style={styles.modalBackdrop}
+                activeOpacity={1}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <View
+                  style={[
+                    styles.iosDatePickerContainer,
+                    { backgroundColor: theme === "dark" ? "#1E1E1E" : "#fff" },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.iosDatePickerHeader,
+                      { borderBottomColor: colors.border },
+                    ]}
+                  >
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text
+                        style={[
+                          styles.doneButtonText,
+                          { color: colors.primary || "#007bff" },
+                        ]}
+                      >
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    mode="date"
+                    value={safeDate(value)}
+                    display="spinner"
+                    themeVariant={theme}
+                    onChange={(event, selectedDate) => {
+                      if (selectedDate) {
+                        const formatted = format(selectedDate, "yyyy-MM-dd");
+                        handleChange(formatted);
+                      }
+                    }}
+                    style={{ height: 200 }}
+                  />
+                </View>
+              </TouchableOpacity>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              mode="date"
+              value={safeDate(value)}
+              display="default"
+              themeVariant={theme}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate && event.type !== "dismissed") {
+                  const formatted = format(selectedDate, "yyyy-MM-dd");
+                  handleChange(formatted);
+                }
+              }}
+            />
+          ))}
       </View>
     );
   }
@@ -179,7 +247,6 @@ const GenericField = ({ field, value, onFieldChange, error }) => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -246,6 +313,29 @@ const styles = StyleSheet.create({
   optionTextActive: {
     color: "#007bff",
     fontWeight: "600",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-end",
+  },
+  iosDatePickerContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    paddingBottom: 20,
+  },
+  iosDatePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#007bff",
   },
 });
 

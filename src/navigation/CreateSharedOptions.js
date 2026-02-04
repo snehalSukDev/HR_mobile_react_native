@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
   Image,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Menu, Bell, Sun, Moon } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -235,11 +236,7 @@ function NotificationBell({ onLogout, currentUserEmail }) {
         <MaterialIcons name="power-settings-new" size={24} color="#EA4335" />
       </TouchableOpacity>
       <TouchableOpacity
-        onPress={() =>
-          navigation.navigate("Home", {
-            screen: "Info",
-          })
-        }
+        onPress={() => navigation.navigate("Profile")}
         style={{ marginRight: 12 }}
         activeOpacity={0.7}
       >
@@ -264,173 +261,187 @@ function NotificationBell({ onLogout, currentUserEmail }) {
         animationType="slide"
         onRequestClose={close}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-            <CustomLoader visible={loading} />
-            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
-              {selected ? (
-                <TouchableOpacity
-                  onPress={() => setSelected(null)}
-                  style={styles.iconButton}
-                >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={close}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+              <CustomLoader visible={loading} />
+              <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+                {selected ? (
+                  <TouchableOpacity
+                    onPress={() => setSelected(null)}
+                    style={styles.iconButton}
+                  >
+                    <MaterialIcons
+                      name="arrow-back"
+                      size={22}
+                      color={dynamicStyles.iconColor}
+                    />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.iconButtonPlaceholder} />
+                )}
+
+                <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                  {title}
+                </Text>
+
+                <TouchableOpacity onPress={close} style={styles.iconButton}>
                   <MaterialIcons
-                    name="arrow-back"
+                    name="close"
                     size={22}
                     color={dynamicStyles.iconColor}
                   />
                 </TouchableOpacity>
-              ) : (
-                <View style={styles.iconButtonPlaceholder} />
-              )}
-
-              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                {title}
-              </Text>
-
-              <TouchableOpacity onPress={close} style={styles.iconButton}>
-                <MaterialIcons
-                  name="close"
-                  size={22}
-                  color={dynamicStyles.iconColor}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {error ? (
-              <View style={styles.centered}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={fetchNotifications}
-                >
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
               </View>
-            ) : selected ? (
-              <ScrollView style={styles.modalBody}>
-                <SegmentedText
-                  style={[styles.detailTitle, dynamicStyles.detailTitle]}
-                  raw={
-                    selected?.subject ||
-                    selected?.document_name ||
-                    "Notification"
-                  }
-                />
-                {selected?.creation ? (
-                  <Text style={[styles.detailMeta, dynamicStyles.detailMeta]}>
-                    {new Date(selected.creation).toLocaleString()}
-                  </Text>
-                ) : null}
-                <SegmentedText
-                  style={[styles.detailBody, dynamicStyles.detailBody]}
-                  raw={
-                    selected?.email_content ||
-                    selected?.message ||
-                    selected?.subject ||
-                    "No content"
-                  }
-                />
-              </ScrollView>
-            ) : (
-              <ScrollView style={styles.modalBody}>
-                {generalNotifications.length > 0 ? (
-                  generalNotifications.map((notif) => {
-                    const titleText =
-                      notif?.subject ||
-                      notif?.document_name ||
-                      notif?.name ||
-                      "Notification";
-                    const preview =
-                      typeof notif?.email_content === "string"
-                        ? notif.email_content
-                        : "";
-                    const isRead =
-                      notif?.read === 1 ||
-                      notif?.read === true ||
-                      notif?.read === "1";
-                    return (
-                      <View
-                        key={notif?.name}
+
+              {error ? (
+                <View style={styles.centered}>
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity
+                    style={styles.retryButton}
+                    onPress={fetchNotifications}
+                  >
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : selected ? (
+                <ScrollView style={styles.modalBody}>
+                  <SegmentedText
+                    style={[styles.detailTitle, dynamicStyles.detailTitle]}
+                    raw={
+                      selected?.subject ||
+                      selected?.document_name ||
+                      "Notification"
+                    }
+                  />
+                  {selected?.creation ? (
+                    <Text style={[styles.detailMeta, dynamicStyles.detailMeta]}>
+                      {new Date(selected.creation).toLocaleString()}
+                    </Text>
+                  ) : null}
+                  <SegmentedText
+                    style={[styles.detailBody, dynamicStyles.detailBody]}
+                    raw={
+                      selected?.email_content ||
+                      selected?.message ||
+                      selected?.subject ||
+                      "No content"
+                    }
+                  />
+                </ScrollView>
+              ) : (
+                <ScrollView style={styles.modalBody}>
+                  {generalNotifications.length > 0 ? (
+                    generalNotifications.map((notif) => {
+                      const titleText =
+                        notif?.subject ||
+                        notif?.document_name ||
+                        notif?.name ||
+                        "Notification";
+                      const preview =
+                        typeof notif?.email_content === "string"
+                          ? notif.email_content
+                          : "";
+                      const isRead =
+                        notif?.read === 1 ||
+                        notif?.read === true ||
+                        notif?.read === "1";
+                      return (
+                        <View
+                          key={notif?.name}
+                          style={[
+                            styles.notifCard,
+                            dynamicStyles.notifCard,
+                            !isRead && {
+                              borderColor: "#007bff",
+                              borderWidth: 1,
+                            },
+                          ]}
+                        >
+                          <View style={styles.notifTopRow}>
+                            <SegmentedText
+                              style={[
+                                styles.notifTitle,
+                                dynamicStyles.notifTitle,
+                              ]}
+                              numberOfLines={2}
+                              raw={titleText}
+                            />
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                isRead
+                                  ? styles.statusBadgeRead
+                                  : styles.statusBadgeUnread,
+                              ]}
+                            >
+                              <Text style={styles.statusBadgeText}>
+                                {isRead ? "Read" : "Unread"}
+                              </Text>
+                            </View>
+                          </View>
+                          {notif?.creation ? (
+                            <Text
+                              style={[
+                                styles.notifMeta,
+                                dynamicStyles.notifMeta,
+                              ]}
+                            >
+                              {new Date(notif.creation).toLocaleString()}
+                            </Text>
+                          ) : null}
+                          {preview ? (
+                            <Text
+                              style={[
+                                styles.notifPreview,
+                                dynamicStyles.notifPreview,
+                              ]}
+                              numberOfLines={2}
+                            >
+                              {cleanHtmlText(preview)}
+                            </Text>
+                          ) : null}
+
+                          <TouchableOpacity
+                            onPress={() => setSelected(notif)}
+                            style={styles.readMoreButton}
+                          >
+                            <Text style={styles.readMoreText}>Read more</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <View style={styles.centered}>
+                      <MaterialIcons
+                        name="notifications-off"
+                        size={56}
+                        color="#dc3545"
+                      />
+                      <Text
+                        style={[styles.emptyTitle, dynamicStyles.emptyTitle]}
+                      >
+                        No New notifications
+                      </Text>
+                      <Text
                         style={[
-                          styles.notifCard,
-                          dynamicStyles.notifCard,
-                          !isRead && { borderColor: "#007bff", borderWidth: 1 },
+                          styles.emptySubtitle,
+                          dynamicStyles.emptySubtitle,
                         ]}
                       >
-                        <View style={styles.notifTopRow}>
-                          <SegmentedText
-                            style={[
-                              styles.notifTitle,
-                              dynamicStyles.notifTitle,
-                            ]}
-                            numberOfLines={2}
-                            raw={titleText}
-                          />
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              isRead
-                                ? styles.statusBadgeRead
-                                : styles.statusBadgeUnread,
-                            ]}
-                          >
-                            <Text style={styles.statusBadgeText}>
-                              {isRead ? "Read" : "Unread"}
-                            </Text>
-                          </View>
-                        </View>
-                        {notif?.creation ? (
-                          <Text
-                            style={[styles.notifMeta, dynamicStyles.notifMeta]}
-                          >
-                            {new Date(notif.creation).toLocaleString()}
-                          </Text>
-                        ) : null}
-                        {preview ? (
-                          <Text
-                            style={[
-                              styles.notifPreview,
-                              dynamicStyles.notifPreview,
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {cleanHtmlText(preview)}
-                          </Text>
-                        ) : null}
-
-                        <TouchableOpacity
-                          onPress={() => setSelected(notif)}
-                          style={styles.readMoreButton}
-                        >
-                          <Text style={styles.readMoreText}>Read more</Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <View style={styles.centered}>
-                    <MaterialIcons
-                      name="notifications-off"
-                      size={56}
-                      color="#dc3545"
-                    />
-                    <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>
-                      No New notifications
-                    </Text>
-                    <Text
-                      style={[
-                        styles.emptySubtitle,
-                        dynamicStyles.emptySubtitle,
-                      ]}
-                    >
-                      Looks like you haven’t received any notifications.
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-            )}
-          </View>
-        </View>
+                        Looks like you haven’t received any notifications.
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
 
       <Modal
@@ -439,76 +450,82 @@ function NotificationBell({ onLogout, currentUserEmail }) {
         animationType="fade"
         onRequestClose={cancelLogout}
       >
-        <View
+        <TouchableOpacity
           style={[
             styles.modalBackdrop,
             { justifyContent: "center", alignItems: "center" },
           ]}
+          activeOpacity={1}
+          onPress={cancelLogout}
         >
-          <View
-            style={{
-              width: "85%",
-              backgroundColor: colors.card,
-              borderRadius: 12,
-              padding: 20,
-              elevation: 5,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "bold",
-                marginBottom: 10,
-                color: colors.text,
-              }}
-            >
-              Logout
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                marginBottom: 20,
-                color: colors.textSecondary,
-              }}
-            >
-              Are you sure you want to log out?
-            </Text>
+          <TouchableWithoutFeedback>
             <View
               style={{
-                flexDirection: "row",
-                justifyContent: "flex-end",
-                gap: 10,
+                width: "85%",
+                backgroundColor: colors.card,
+                borderRadius: 12,
+                padding: 20,
+                elevation: 5,
+                borderWidth: 1,
+                borderColor: colors.border,
               }}
             >
-              <TouchableOpacity
-                onPress={cancelLogout}
+              <Text
                 style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  backgroundColor: theme === "dark" ? "#333" : "#e0e0e0",
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  marginBottom: 10,
+                  color: colors.text,
                 }}
               >
-                <Text style={{ color: colors.text, fontWeight: "600" }}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={confirmLogout}
+                Logout
+              </Text>
+              <Text
                 style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  backgroundColor: "#dc3545",
+                  fontSize: 14,
+                  marginBottom: 20,
+                  color: colors.textSecondary,
                 }}
               >
-                <Text style={{ color: "#fff", fontWeight: "600" }}>Logout</Text>
-              </TouchableOpacity>
+                Are you sure you want to log out?
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                }}
+              >
+                <TouchableOpacity
+                  onPress={cancelLogout}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    borderRadius: 8,
+                    backgroundColor: theme === "dark" ? "#333" : "#e0e0e0",
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontWeight: "600" }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmLogout}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    borderRadius: 8,
+                    backgroundColor: "#dc3545",
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>
+                    Logout
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
     </>
   );
@@ -538,7 +555,7 @@ export const createSharedOptions = (onLogout, currentUserEmail) => {
       </View>
     ),
     headerLeftContainerStyle: {
-      paddingLeft: 0,
+      paddingLeft: 10,
       marginLeft: 0,
     },
     headerRight: () => (

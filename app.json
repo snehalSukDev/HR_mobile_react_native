@@ -7,7 +7,6 @@
     "icon": "./src/assests/techbirdbg.png",
     "userInterfaceStyle": "light",
 
-    "newArchEnabled": false,
     "splash": {
       "image": "./src/assests/techbirdbg.png",
       "resizeMode": "contain",

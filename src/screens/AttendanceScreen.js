@@ -14,6 +14,8 @@ import {
   Modal,
   ScrollView,
   RefreshControl,
+  InteractionManager,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
@@ -63,6 +65,8 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
 
   const getStatusColors = (status) => {
     const isDark = theme === "dark";
+    if (!status) return { bg: colors.card, text: colors.text };
+
     const map = {
       Absent: {
         bg: isDark ? "#7f0000" : "#F9C4C1", // Darker red for dark mode
@@ -198,7 +202,8 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
             field: "attendance_date",
             order: "desc",
           },
-          limit: "*",
+          limit: 50,
+          limit_page_length: 50,
           asDict: true,
           cache: true,
           forceRefresh: isRefresh,
@@ -207,7 +212,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           setRecentAttendanceList(attendanceList || []);
         }
       } catch (error) {
-        console.error("Error fetching attendance:", error);
+        // console.error("Error fetching attendance:", error);
         if (isMountedRef.current) {
           Toast.show({
             type: "error",
@@ -227,7 +232,10 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchRecentAttendance();
+      const task = InteractionManager.runAfterInteractions(() => {
+        fetchRecentAttendance();
+      });
+      return () => task.cancel();
     }, [fetchRecentAttendance]),
   );
 
@@ -303,7 +311,7 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
           setLoadedCalendarMonthKey(`${monthInfo.year}-${monthInfo.month}`);
         }
       } catch (error) {
-        console.error("Error fetching month attendance:", error);
+        // console.error("Error fetching month attendance:", error);
         if (isMountedRef.current) {
           Toast.show({
             type: "error",
@@ -356,6 +364,8 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
       if (!key) return;
       const status = entry.status || "Present";
       const colors = getStatusColors(status);
+      if (!colors) return;
+
       marks[key] = {
         status,
         customStyles: {
@@ -604,81 +614,97 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
             animationType="fade"
             onRequestClose={() => setDayModalVisible(false)}
           >
-            <View style={styles.modalBackdrop}>
-              <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-                <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
-                  <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                    Day Details
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.modalCloseButton}
-                    onPress={() => setDayModalVisible(false)}
-                  >
-                    <Text style={styles.modalCloseText}>Close</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.modalBody}>
-                  <View style={[styles.detailRow, dynamicStyles.detailRow]}>
-                    <Text
-                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
-                    >
-                      Date
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={() => setDayModalVisible(false)}
+            >
+              <TouchableWithoutFeedback>
+                <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+                  <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+                    <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                      Day Details
                     </Text>
-                    <Text
-                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    <TouchableOpacity
+                      style={styles.modalCloseButton}
+                      onPress={() => setDayModalVisible(false)}
                     >
-                      {dayModalData.date}
-                    </Text>
+                      <Text style={styles.modalCloseText}>Close</Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={[styles.detailRow, dynamicStyles.detailRow]}>
-                    <Text
-                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
-                    >
-                      Status
-                    </Text>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor: getStatusColors(dayModalData.status)
-                            .bg,
-                        },
-                      ]}
-                    >
-                      <Text style={styles.statusText}>
-                        {dayModalData.title || dayModalData.status}
-                      </Text>
-                    </View>
-                  </View>
-                  {dayModalData.employeeName ? (
+                  <View style={styles.modalBody}>
                     <View style={[styles.detailRow, dynamicStyles.detailRow]}>
                       <Text
                         style={[styles.detailLabel, dynamicStyles.detailLabel]}
                       >
-                        Employee
+                        Date
                       </Text>
                       <Text
                         style={[styles.detailValue, dynamicStyles.detailValue]}
                       >
-                        {dayModalData.employeeName}
+                        {dayModalData.date}
                       </Text>
                     </View>
-                  ) : null}
-                  {dayModalData.description ? (
-                    <View style={{ paddingTop: 10 }}>
+                    <View style={[styles.detailRow, dynamicStyles.detailRow]}>
                       <Text
                         style={[styles.detailLabel, dynamicStyles.detailLabel]}
                       >
-                        Notes
+                        Status
                       </Text>
-                      <Text style={[styles.dayDesc, dynamicStyles.text]}>
-                        {dayModalData.description}
-                      </Text>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: getStatusColors(
+                              dayModalData.status,
+                            ).bg,
+                          },
+                        ]}
+                      >
+                        <Text style={styles.statusText}>
+                          {dayModalData.title || dayModalData.status}
+                        </Text>
+                      </View>
                     </View>
-                  ) : null}
+                    {dayModalData.employeeName ? (
+                      <View style={[styles.detailRow, dynamicStyles.detailRow]}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            dynamicStyles.detailLabel,
+                          ]}
+                        >
+                          Employee
+                        </Text>
+                        <Text
+                          style={[
+                            styles.detailValue,
+                            dynamicStyles.detailValue,
+                          ]}
+                        >
+                          {dayModalData.employeeName}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {dayModalData.description ? (
+                      <View style={{ paddingTop: 10 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            dynamicStyles.detailLabel,
+                          ]}
+                        >
+                          Notes
+                        </Text>
+                        <Text style={[styles.dayDesc, dynamicStyles.text]}>
+                          {dayModalData.description}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            </View>
+              </TouchableWithoutFeedback>
+            </TouchableOpacity>
           </Modal>
         </>
       ) : (
@@ -705,49 +731,58 @@ const AttendanceScreen = ({ currentUserEmail, currentEmployeeId }) => {
         animationType="fade"
         onRequestClose={() => setOpen(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
-              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                Attendance Details
-              </Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setOpen(false)}
-              >
-                <Text style={styles.modalCloseText}>Close</Text>
-              </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+              <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+                <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                  Attendance Details
+                </Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setOpen(false)}
+                >
+                  <Text style={styles.modalCloseText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalBody}>
+                {renderDetailRow("Name", selectedAttendanceDetails?.name)}
+                {renderDetailRow(
+                  "Employee",
+                  selectedAttendanceDetails?.employee_name ||
+                    selectedAttendanceDetails?.employee,
+                )}
+                {renderDetailRow(
+                  "Date",
+                  selectedAttendanceDetails?.attendance_date
+                    ? formatDate(selectedAttendanceDetails.attendance_date)
+                    : null,
+                )}
+                {renderDetailRow("Status", selectedAttendanceDetails?.status)}
+                {renderDetailRow("Shift", selectedAttendanceDetails?.shift)}
+                {renderDetailRow("In Time", selectedAttendanceDetails?.in_time)}
+                {renderDetailRow(
+                  "Out Time",
+                  selectedAttendanceDetails?.out_time,
+                )}
+                {renderDetailRow(
+                  "Working Hours",
+                  selectedAttendanceDetails?.working_hours,
+                )}
+                {renderDetailRow(
+                  "Modified",
+                  selectedAttendanceDetails?.modified
+                    ? formatDate(selectedAttendanceDetails.modified)
+                    : null,
+                )}
+              </View>
             </View>
-            <View style={styles.modalBody}>
-              {renderDetailRow("Name", selectedAttendanceDetails?.name)}
-              {renderDetailRow(
-                "Employee",
-                selectedAttendanceDetails?.employee_name ||
-                  selectedAttendanceDetails?.employee,
-              )}
-              {renderDetailRow(
-                "Date",
-                selectedAttendanceDetails?.attendance_date
-                  ? formatDate(selectedAttendanceDetails.attendance_date)
-                  : null,
-              )}
-              {renderDetailRow("Status", selectedAttendanceDetails?.status)}
-              {renderDetailRow("Shift", selectedAttendanceDetails?.shift)}
-              {renderDetailRow("In Time", selectedAttendanceDetails?.in_time)}
-              {renderDetailRow("Out Time", selectedAttendanceDetails?.out_time)}
-              {renderDetailRow(
-                "Working Hours",
-                selectedAttendanceDetails?.working_hours,
-              )}
-              {renderDetailRow(
-                "Modified",
-                selectedAttendanceDetails?.modified
-                  ? formatDate(selectedAttendanceDetails.modified)
-                  : null,
-              )}
-            </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
       <DoctypeFormModal
         visible={showApplyModal}

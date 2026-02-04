@@ -14,6 +14,7 @@ import {
   Button,
   TextInput,
   Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { InteractionManager } from "react-native";
@@ -806,76 +807,82 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         animationType="slide"
         onRequestClose={() => setShowExpenseModal(false)}
       >
-        <View style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}>
-          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
-              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                Expense Details
-              </Text>
-              <TouchableOpacity onPress={() => setShowExpenseModal(false)}>
-                <Plus
-                  size={24}
-                  color={colors.text}
-                  style={{ transform: [{ rotate: "45deg" }] }}
-                />
-              </TouchableOpacity>
-            </View>
+        <TouchableOpacity
+          style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}
+          activeOpacity={1}
+          onPress={() => setShowExpenseModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+              <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+                <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                  Expense Details
+                </Text>
+                <TouchableOpacity onPress={() => setShowExpenseModal(false)}>
+                  <Plus
+                    size={24}
+                    color={colors.text}
+                    style={{ transform: [{ rotate: "45deg" }] }}
+                  />
+                </TouchableOpacity>
+              </View>
 
-            <View style={[styles.modalBody, dynamicStyles.modalBody]}>
-              {selectedExpense && (
-                <>
-                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                    <Text style={[styles.label, dynamicStyles.label]}>
-                      Employee:
-                    </Text>
-                    <Text style={[styles.value, dynamicStyles.value]}>
-                      {selectedExpense.employee_name}
-                    </Text>
-                  </View>
-                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                    <Text style={[styles.label, dynamicStyles.label]}>
-                      Amount:
-                    </Text>
-                    <Text style={[styles.value, dynamicStyles.value]}>
-                      ₹ {selectedExpense.total_claimed_amount}
-                    </Text>
-                  </View>
-                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                    <Text style={[styles.label, dynamicStyles.label]}>
-                      Date:
-                    </Text>
-                    <Text style={[styles.value, dynamicStyles.value]}>
-                      {formatDate(selectedExpense.posting_date)}
-                    </Text>
-                  </View>
-                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                    <Text style={[styles.label, dynamicStyles.label]}>
-                      Current Status:
-                    </Text>
-                    <Text style={[styles.value, dynamicStyles.value]}>
-                      {selectedExpense.approval_status}
-                    </Text>
-                  </View>
-                </>
-              )}
-            </View>
+              <View style={[styles.modalBody, dynamicStyles.modalBody]}>
+                {selectedExpense && (
+                  <>
+                    <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                      <Text style={[styles.label, dynamicStyles.label]}>
+                        Employee:
+                      </Text>
+                      <Text style={[styles.value, dynamicStyles.value]}>
+                        {selectedExpense.employee_name}
+                      </Text>
+                    </View>
+                    <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                      <Text style={[styles.label, dynamicStyles.label]}>
+                        Amount:
+                      </Text>
+                      <Text style={[styles.value, dynamicStyles.value]}>
+                        ₹ {selectedExpense.total_claimed_amount}
+                      </Text>
+                    </View>
+                    <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                      <Text style={[styles.label, dynamicStyles.label]}>
+                        Date:
+                      </Text>
+                      <Text style={[styles.value, dynamicStyles.value]}>
+                        {formatDate(selectedExpense.posting_date)}
+                      </Text>
+                    </View>
+                    <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                      <Text style={[styles.label, dynamicStyles.label]}>
+                        Current Status:
+                      </Text>
+                      <Text style={[styles.value, dynamicStyles.value]}>
+                        {selectedExpense.approval_status}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
 
-            <View style={[styles.modalFooter, dynamicStyles.modalFooter]}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.rejectButton]}
-                onPress={() => handleExpenseStatusChange("Rejected")}
-              >
-                <Text style={styles.actionButtonText}>Reject</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.approveButton]}
-                onPress={() => handleExpenseStatusChange("Approved")}
-              >
-                <Text style={styles.actionButtonText}>Approve</Text>
-              </TouchableOpacity>
+              <View style={[styles.modalFooter, dynamicStyles.modalFooter]}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.rejectButton]}
+                  onPress={() => handleExpenseStatusChange("Rejected")}
+                >
+                  <Text style={styles.actionButtonText}>Reject</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.approveButton]}
+                  onPress={() => handleExpenseStatusChange("Approved")}
+                >
+                  <Text style={styles.actionButtonText}>Approve</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
       <Modal
         visible={showLeaveModal}
@@ -883,98 +890,108 @@ const ApprovalScreen = ({ currentEmployeeId, currentUserEmail }) => {
         animationType="slide"
         onRequestClose={() => setShowLeaveModal(false)}
       >
-        <View style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}>
-          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
-              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                Leave Application
-              </Text>
-              <TouchableOpacity onPress={() => setShowLeaveModal(false)}>
-                <Plus
-                  size={24}
-                  color={colors.text}
-                  style={{ transform: [{ rotate: "45deg" }] }}
-                />
-              </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}
+          activeOpacity={1}
+          onPress={() => setShowLeaveModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+              <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+                <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                  Leave Application
+                </Text>
+                <TouchableOpacity onPress={() => setShowLeaveModal(false)}>
+                  <Plus
+                    size={24}
+                    color={colors.text}
+                    style={{ transform: [{ rotate: "45deg" }] }}
+                  />
+                </TouchableOpacity>
+              </View>
+              {selectedLeave ? (
+                <View style={[styles.modalBody, dynamicStyles.modalBody]}>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>ID</Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {selectedLeave.name}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Employee
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {selectedLeave.employee_name}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Period
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {formatDate(selectedLeave.from_date)} -{" "}
+                      {formatDate(selectedLeave.to_date)}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Days
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {String(selectedLeave.total_leave_days || 0)}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Type
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {selectedLeave.leave_type}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Status
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {selectedLeave.status === "Open" ||
+                      selectedLeave.docstatus === 0
+                        ? "Pending"
+                        : selectedLeave.status}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, dynamicStyles.infoRow]}>
+                    <Text style={[styles.label, dynamicStyles.label]}>
+                      Reason
+                    </Text>
+                    <Text style={[styles.value, dynamicStyles.value]}>
+                      {selectedLeave.description || "N/A"}
+                    </Text>
+                  </View>
+                  <View style={[styles.modalFooter, dynamicStyles.modalFooter]}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.approveButton]}
+                      onPress={() => handleLeaveStatusChange("Approved")}
+                    >
+                      <Text style={styles.actionButtonText}>Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.rejectButton]}
+                      onPress={() => handleLeaveStatusChange("Rejected")}
+                    >
+                      <Text style={styles.actionButtonText}>Reject</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.centered, dynamicStyles.centered]}>
+                  <CustomLoader visible={true} />
+                </View>
+              )}
             </View>
-            {selectedLeave ? (
-              <View style={[styles.modalBody, dynamicStyles.modalBody]}>
-                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                  <Text style={[styles.label, dynamicStyles.label]}>ID</Text>
-                  <Text style={[styles.value, dynamicStyles.value]}>
-                    {selectedLeave.name}
-                  </Text>
-                </View>
-                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                  <Text style={[styles.label, dynamicStyles.label]}>
-                    Employee
-                  </Text>
-                  <Text style={[styles.value, dynamicStyles.value]}>
-                    {selectedLeave.employee_name}
-                  </Text>
-                </View>
-                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                  <Text style={[styles.label, dynamicStyles.label]}>
-                    Period
-                  </Text>
-                  <Text style={[styles.value, dynamicStyles.value]}>
-                    {formatDate(selectedLeave.from_date)} -{" "}
-                    {formatDate(selectedLeave.to_date)}
-                  </Text>
-                </View>
-                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                  <Text style={[styles.label, dynamicStyles.label]}>Days</Text>
-                  <Text style={[styles.value, dynamicStyles.value]}>
-                    {String(selectedLeave.total_leave_days || 0)}
-                  </Text>
-                </View>
-                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                  <Text style={[styles.label, dynamicStyles.label]}>Type</Text>
-                  <Text style={[styles.value, dynamicStyles.value]}>
-                    {selectedLeave.leave_type}
-                  </Text>
-                </View>
-                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                  <Text style={[styles.label, dynamicStyles.label]}>
-                    Status
-                  </Text>
-                  <Text style={[styles.value, dynamicStyles.value]}>
-                    {selectedLeave.status === "Open" ||
-                    selectedLeave.docstatus === 0
-                      ? "Pending"
-                      : selectedLeave.status}
-                  </Text>
-                </View>
-                <View style={[styles.infoRow, dynamicStyles.infoRow]}>
-                  <Text style={[styles.label, dynamicStyles.label]}>
-                    Reason
-                  </Text>
-                  <Text style={[styles.value, dynamicStyles.value]}>
-                    {selectedLeave.description || "N/A"}
-                  </Text>
-                </View>
-                <View style={[styles.modalFooter, dynamicStyles.modalFooter]}>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.approveButton]}
-                    onPress={() => handleLeaveStatusChange("Approved")}
-                  >
-                    <Text style={styles.actionButtonText}>Approve</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.rejectButton]}
-                    onPress={() => handleLeaveStatusChange("Rejected")}
-                  >
-                    <Text style={styles.actionButtonText}>Reject</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View style={[styles.centered, dynamicStyles.centered]}>
-                <CustomLoader visible={true} />
-              </View>
-            )}
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
       <DoctypeExpenseModal
         visible={showNewModal}

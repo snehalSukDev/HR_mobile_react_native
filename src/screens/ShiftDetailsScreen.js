@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   RefreshControl,
   Modal,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -38,21 +39,34 @@ import { format, parseISO } from "date-fns";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
-  return format(parseISO(dateString), "dd MMM yy");
+  try {
+    return format(parseISO(dateString), "dd MMM yy");
+  } catch (e) {
+    return dateString || "N/A";
+  }
 };
 
 // Helper function to format times
 const formatTime = (timeString) => {
   if (!timeString) return "N/A";
-  const [hours, minutes] = timeString.split(":");
-  const date = new Date();
-  date.setHours(parseInt(hours, 10));
-  date.setMinutes(parseInt(minutes, 10));
-  return date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  try {
+    const parts = timeString.split(":");
+    if (parts.length < 2) return timeString;
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return timeString;
+
+    const date = new Date();
+    date.setHours(hours);
+    date.setMinutes(minutes);
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (e) {
+    return timeString;
+  }
 };
 
 const ShiftDetailsScreen = ({
@@ -107,10 +121,13 @@ const ShiftDetailsScreen = ({
 
   const fetchShiftData = useCallback(
     async (isRefresh = false) => {
-      if (!currentUserEmail) {
+      // Prioritize currentEmployeeId if available to save a network call
+      const hasEmployeeId = !!currentEmployeeId;
+
+      if (!currentUserEmail && !hasEmployeeId) {
         if (isMountedRef.current) {
           setError(
-            "User email not provided. Please ensure your profile is complete.",
+            "User email or ID not provided. Please ensure your profile is complete.",
           );
           if (isRefresh) {
             setRefreshing(false);
@@ -129,26 +146,33 @@ const ShiftDetailsScreen = ({
       setError(null);
 
       try {
-        const empRes = await getResourceList("Employee", {
-          filters: JSON.stringify([["user_id", "=", currentUserEmail]]),
-          fields: JSON.stringify(["name"]),
-          cache: true,
-          forceRefresh: isRefresh,
-        });
+        let empId = currentEmployeeId;
 
-        if (!empRes || empRes.length === 0) {
-          if (isMountedRef.current) {
-            setError("Employee not found. Please contact your administrator.");
-            if (isRefresh) {
-              setRefreshing(false);
-            } else {
-              setLoading(false);
+        // If we don't have the ID but have the email, fetch the ID
+        if (!empId && currentUserEmail) {
+          const empRes = await getResourceList("Employee", {
+            filters: JSON.stringify([["user_id", "=", currentUserEmail]]),
+            fields: JSON.stringify(["name"]),
+            cache: true,
+            forceRefresh: isRefresh,
+          });
+
+          if (!empRes || empRes.length === 0) {
+            if (isMountedRef.current) {
+              setError(
+                "Employee not found. Please contact your administrator.",
+              );
+              if (isRefresh) {
+                setRefreshing(false);
+              } else {
+                setLoading(false);
+              }
             }
+            return;
           }
-          return;
+          empId = empRes?.[0]?.name;
         }
 
-        const empId = empRes?.[0]?.name;
         if (!empId) {
           if (isMountedRef.current) {
             setError(
@@ -178,35 +202,50 @@ const ShiftDetailsScreen = ({
           .toISOString()
           .split("T")[0];
 
-        const assignments = await getResourceList("Shift Assignment", {
-          filters: JSON.stringify([
-            ["employee", "=", empId],
-            ["start_date", "<=", endDate],
-            ["end_date", ">=", startDate],
-            ["docstatus", "=", 1],
-          ]),
-          fields: JSON.stringify([
-            "name",
-            "start_date",
-            "end_date",
-            "shift_type",
-          ]),
-          cache: true,
-          forceRefresh: isRefresh,
-        });
+        const assignments =
+          (await getResourceList("Shift Assignment", {
+            filters: JSON.stringify([
+              ["employee", "=", empId],
+              ["start_date", "<=", endDate],
+              ["end_date", ">=", startDate],
+              ["docstatus", "=", 1],
+            ]),
+            fields: JSON.stringify([
+              "name",
+              "start_date",
+              "end_date",
+              "shift_type",
+            ]),
+            limit_page_length: 100,
+            cache: true,
+            forceRefresh: isRefresh,
+          })) || [];
+
+        if (!isMountedRef.current) return;
 
         const shiftTypes = [...new Set(assignments.map((a) => a.shift_type))];
         const shiftTypeMap = {};
-        for (const type of shiftTypes) {
-          const details = await getResource("Shift Type", type, {
-            cache: true,
-            cacheTTL: 24 * 60 * 60 * 1000,
-            forceRefresh: isRefresh,
-          });
-          if (shiftTypeMap) {
-            shiftTypeMap[type] = details;
-          }
-        }
+
+        // Optimize with Promise.all and check mount status
+        await Promise.all(
+          shiftTypes.map(async (type) => {
+            if (!isMountedRef.current) return;
+            try {
+              const details = await getResource("Shift Type", type, {
+                cache: true,
+                cacheTTL: 24 * 60 * 60 * 1000,
+                forceRefresh: isRefresh,
+              });
+              if (isMountedRef.current && details) {
+                shiftTypeMap[type] = details;
+              }
+            } catch (e) {
+              console.warn(`Failed to fetch shift type ${type}`, e);
+            }
+          }),
+        );
+
+        if (!isMountedRef.current) return;
 
         let dailyRoster = [];
         for (const assign of assignments) {
@@ -221,7 +260,7 @@ const ShiftDetailsScreen = ({
 
           for (
             let d = new Date(loopStart);
-            d <= loopEnd;
+            !isNaN(d.getTime()) && d <= loopEnd;
             d.setDate(d.getDate() + 1)
           ) {
             const shiftTypeDetails = shiftTypeMap?.[assign.shift_type];
@@ -242,7 +281,7 @@ const ShiftDetailsScreen = ({
           setShiftData(dailyRoster);
         }
       } catch (err) {
-        console.error("Shift fetch error:", err);
+        // console.error("Shift fetch error:", err);
         if (isMountedRef.current) {
           Toast.show({
             type: "error",
@@ -262,12 +301,15 @@ const ShiftDetailsScreen = ({
         }
       }
     },
-    [currentUserEmail, currentMonth],
+    [currentUserEmail, currentEmployeeId, currentMonth],
   );
 
   useFocusEffect(
     useCallback(() => {
-      fetchShiftData();
+      const task = InteractionManager.runAfterInteractions(() => {
+        fetchShiftData();
+      });
+      return () => task.cancel();
     }, [fetchShiftData]),
   );
 

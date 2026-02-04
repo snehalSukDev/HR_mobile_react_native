@@ -26,12 +26,16 @@ import { useFocusEffect } from "@react-navigation/native";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleDateString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  try {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch (e) {
+    return dateString || "N/A";
+  }
 };
 
 const HolidaysScreen = ({ currentUserEmail, currentEmployeeId }) => {

@@ -10,6 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -203,7 +204,7 @@ const DoctypeExpenseModal = ({
         setFields(filtered);
         setChildTables(tables);
       } catch (err) {
-        console.error("loadMeta error", err);
+        // console.error("loadMeta error", err);
         Toast.show({
           type: "error",
           text1: "Error",
@@ -248,368 +249,374 @@ const DoctypeExpenseModal = ({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.modalBackdrop}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={[styles.modalContainer, dynamicStyles.modalContainer]}
-        >
-          <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
-            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-              {title || doctype}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialIcons
-                name="close"
-                size={22}
-                color={dynamicStyles.closeIcon.color}
-              />
-            </TouchableOpacity>
-          </View>
-          <CustomLoader visible={loading || isSaving} />
-          {!loading && (
-            <Formik
-              initialValues={initialValues}
-              enableReinitialize={true}
-              onSubmit={async (values, { setSubmitting }) => {
-                const missing = [];
-                fields.forEach((f) => {
-                  if (f.reqd) {
-                    const v = values[f.fieldname];
-                    let empty = false;
-                    if (f.fieldtype === "Check") {
-                      empty = v !== true;
-                    } else if (v == null) {
-                      empty = true;
-                    } else if (typeof v === "string") {
-                      empty = v.trim().length === 0;
+      <TouchableOpacity
+        style={styles.modalBackdrop}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableWithoutFeedback>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={[styles.modalContainer, dynamicStyles.modalContainer]}
+          >
+            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                {title || doctype}
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialIcons
+                  name="close"
+                  size={22}
+                  color={dynamicStyles.closeIcon.color}
+                />
+              </TouchableOpacity>
+            </View>
+            <CustomLoader visible={loading || isSaving} />
+            {!loading && (
+              <Formik
+                initialValues={initialValues}
+                enableReinitialize={true}
+                onSubmit={async (values, { setSubmitting }) => {
+                  const missing = [];
+                  fields.forEach((f) => {
+                    if (f.reqd) {
+                      const v = values[f.fieldname];
+                      let empty = false;
+                      if (f.fieldtype === "Check") {
+                        empty = v !== true;
+                      } else if (v == null) {
+                        empty = true;
+                      } else if (typeof v === "string") {
+                        empty = v.trim().length === 0;
+                      }
+                      if (empty) missing.push(f.fieldname);
                     }
-                    if (empty) missing.push(f.fieldname);
+                  });
+                  if (missing.length > 0) {
+                    const nextInvalid = {};
+                    missing.forEach((k) => (nextInvalid[k] = true));
+                    setInvalidFields(nextInvalid);
+                    const first = missing[0];
+                    const y = positionsRef.current[first] ?? 0;
+                    if (scrollRef.current && typeof y === "number") {
+                      scrollRef.current.scrollTo({
+                        y: Math.max(y - 12, 0),
+                        animated: true,
+                      });
+                    }
+                    setSubmitting(false);
+                    return;
+                  } else {
+                    setInvalidFields({});
                   }
-                });
-                if (missing.length > 0) {
-                  const nextInvalid = {};
-                  missing.forEach((k) => (nextInvalid[k] = true));
-                  setInvalidFields(nextInvalid);
-                  const first = missing[0];
-                  const y = positionsRef.current[first] ?? 0;
-                  if (scrollRef.current && typeof y === "number") {
-                    scrollRef.current.scrollTo({
-                      y: Math.max(y - 12, 0),
-                      animated: true,
-                    });
-                  }
-                  setSubmitting(false);
-                  return;
-                } else {
-                  setInvalidFields({});
-                }
-                const tempName = `new-${doctype
-                  .toLowerCase()
-                  .replace(/ /g, "-")}-${Date.now()}`;
+                  const tempName = `new-${doctype
+                    .toLowerCase()
+                    .replace(/ /g, "-")}-${Date.now()}`;
 
-                try {
-                  const docValues = { ...values };
-                  childTables.forEach((tbl) => {
-                    const rows = Array.isArray(values[tbl.fieldname])
-                      ? values[tbl.fieldname]
-                      : [];
-                    if (rows.length === 0) return;
-                    docValues[tbl.fieldname] = rows.map((row, idx) => ({
-                      ...row,
-                      doctype: tbl.options,
-                      parent: tempName,
-                      parentfield: tbl.fieldname,
-                      parenttype: doctype,
-                      idx: idx + 1,
+                  try {
+                    const docValues = { ...values };
+                    childTables.forEach((tbl) => {
+                      const rows = Array.isArray(values[tbl.fieldname])
+                        ? values[tbl.fieldname]
+                        : [];
+                      if (rows.length === 0) return;
+                      docValues[tbl.fieldname] = rows.map((row, idx) => ({
+                        ...row,
+                        doctype: tbl.options,
+                        parent: tempName,
+                        parentfield: tbl.fieldname,
+                        parenttype: doctype,
+                        idx: idx + 1,
+                        __islocal: 1,
+                        __unsaved: 1,
+                      }));
+                    });
+                    const doc = {
+                      ...docValues,
+
+                      // Required Frappe meta
+                      doctype,
+                      name: tempName,
+                      docstatus: 0,
                       __islocal: 1,
                       __unsaved: 1,
-                    }));
-                  });
-                  const doc = {
-                    ...docValues,
 
-                    // Required Frappe meta
-                    doctype,
-                    name: tempName,
-                    docstatus: 0,
-                    __islocal: 1,
-                    __unsaved: 1,
+                      // Optional but recommended
+                      // owner: "hrmanager@test.com",
+                      posting_date: format(new Date(), "yyyy-MM-dd"),
+                      // status: "Open",
+                    };
 
-                    // Optional but recommended
-                    // owner: "hrmanager@test.com",
-                    posting_date: format(new Date(), "yyyy-MM-dd"),
-                    // status: "Open",
+                    const saved = await saveDoc(doc);
+
+                    if (!isMountedRef.current) return;
+
+                    if (doctype === "Attendance Request") {
+                      await submitSavedDoc(saved, doc);
+                      if (!isMountedRef.current) return;
+                    }
+
+                    Toast.show({
+                      type: "success",
+                      text1: "Success",
+                      text2:
+                        doctype === "Attendance Request"
+                          ? `${doctype} submitted successfully`
+                          : `${doctype} saved successfully`,
+                    });
+                    if (typeof onSuccess === "function") {
+                      onSuccess({ saved, tempDoc: doc, doctype });
+                    }
+                    onClose();
+                  } catch (err) {
+                    if (!isMountedRef.current) return;
+                    const serverText =
+                      (err && err.serverMessagesText) ||
+                      err.message ||
+                      String(err);
+                    Toast.show({
+                      type: "error",
+                      text1: "Error",
+                      text2: serverText,
+                    });
+                  } finally {
+                    setSubmitting(false);
+                    setIsSaving(false);
+                  }
+                }}
+              >
+                {({ values, setFieldValue, handleSubmit }) => {
+                  const handleFieldChange = (fieldname, val) => {
+                    setFieldValue(fieldname, val);
+                    if (invalidFields[fieldname]) {
+                      setInvalidFields((prev) => ({
+                        ...prev,
+                        [fieldname]: false,
+                      }));
+                    }
+                    if (
+                      fieldname === "employee" &&
+                      typeof val === "string" &&
+                      val.trim().length >= 3
+                    ) {
+                      (async () => {
+                        try {
+                          if (!isMountedRef.current) return;
+                          const emp = await getResource("Employee", val, {
+                            cache: true,
+                            cacheTTL: 60 * 60 * 1000, // 1 hour
+                          });
+                          if (isMountedRef.current && emp?.employee_name) {
+                            setFieldValue("employee_name", emp.employee_name);
+                          }
+                        } catch {}
+                      })();
+                    }
                   };
 
-                  const saved = await saveDoc(doc);
-
-                  if (!isMountedRef.current) return;
-
-                  if (doctype === "Attendance Request") {
-                    await submitSavedDoc(saved, doc);
-                    if (!isMountedRef.current) return;
-                  }
-
-                  Toast.show({
-                    type: "success",
-                    text1: "Success",
-                    text2:
-                      doctype === "Attendance Request"
-                        ? `${doctype} submitted successfully`
-                        : `${doctype} saved successfully`,
-                  });
-                  if (typeof onSuccess === "function") {
-                    onSuccess({ saved, tempDoc: doc, doctype });
-                  }
-                  onClose();
-                } catch (err) {
-                  if (!isMountedRef.current) return;
-                  const serverText =
-                    (err && err.serverMessagesText) ||
-                    err.message ||
-                    String(err);
-                  Toast.show({
-                    type: "error",
-                    text1: "Error",
-                    text2: serverText,
-                  });
-                } finally {
-                  setSubmitting(false);
-                  setIsSaving(false);
-                }
-              }}
-            >
-              {({ values, setFieldValue, handleSubmit }) => {
-                const handleFieldChange = (fieldname, val) => {
-                  setFieldValue(fieldname, val);
-                  if (invalidFields[fieldname]) {
-                    setInvalidFields((prev) => ({
-                      ...prev,
-                      [fieldname]: false,
-                    }));
-                  }
-                  if (
-                    fieldname === "employee" &&
-                    typeof val === "string" &&
-                    val.trim().length >= 3
-                  ) {
-                    (async () => {
-                      try {
-                        if (!isMountedRef.current) return;
-                        const emp = await getResource("Employee", val, {
-                          cache: true,
-                          cacheTTL: 60 * 60 * 1000, // 1 hour
-                        });
-                        if (isMountedRef.current && emp?.employee_name) {
-                          setFieldValue("employee_name", emp.employee_name);
-                        }
-                      } catch {}
-                    })();
-                  }
-                };
-
-                return (
-                  <>
-                    <ScrollView
-                      style={[styles.modalBody, dynamicStyles.modalBody]}
-                      ref={scrollRef}
-                      keyboardShouldPersistTaps="handled"
-                    >
-                      {fields.length === 0 ? (
-                        <View style={styles.noDataContainer}>
-                          <MaterialIcons
-                            name="info-outline"
-                            size={24}
-                            color={colors.textSecondary}
-                          />
-                          <Text
-                            style={[
-                              styles.noDataText,
-                              dynamicStyles.noDataText,
-                            ]}
-                          >
-                            No fields available.
-                          </Text>
-                        </View>
-                      ) : (
-                        fields.map((f) => {
-                          const value = values[f.fieldname] ?? "";
-                          return (
-                            <View
-                              key={f.fieldname}
-                              style={styles.formField}
-                              onLayout={(e) => {
-                                positionsRef.current[f.fieldname] =
-                                  e.nativeEvent.layout.y;
-                              }}
+                  return (
+                    <>
+                      <ScrollView
+                        style={[styles.modalBody, dynamicStyles.modalBody]}
+                        ref={scrollRef}
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        {fields.length === 0 ? (
+                          <View style={styles.noDataContainer}>
+                            <MaterialIcons
+                              name="info-outline"
+                              size={24}
+                              color={colors.textSecondary}
+                            />
+                            <Text
+                              style={[
+                                styles.noDataText,
+                                dynamicStyles.noDataText,
+                              ]}
                             >
-                              {f.fieldtype === "Link" ? (
-                                <LinkField
-                                  field={f}
-                                  value={value}
-                                  onFieldChange={handleFieldChange}
-                                  doctype={doctype}
-                                  error={invalidFields[f.fieldname]}
-                                />
-                              ) : (
-                                <GenericField
-                                  field={f}
-                                  value={value}
-                                  onFieldChange={handleFieldChange}
-                                  error={invalidFields[f.fieldname]}
-                                />
-                              )}
-                            </View>
-                          );
-                        })
-                      )}
-                      {childTables.length > 0 && (
-                        <View>
-                          {childTables.map((tbl) => {
-                            const rows = Array.isArray(values[tbl.fieldname])
-                              ? values[tbl.fieldname]
-                              : [];
+                              No fields available.
+                            </Text>
+                          </View>
+                        ) : (
+                          fields.map((f) => {
+                            const value = values[f.fieldname] ?? "";
                             return (
                               <View
-                                key={tbl.fieldname}
-                                style={styles.childTableSection}
+                                key={f.fieldname}
+                                style={styles.formField}
+                                onLayout={(e) => {
+                                  positionsRef.current[f.fieldname] =
+                                    e.nativeEvent.layout.y;
+                                }}
                               >
-                                <View style={styles.childRowHeader}>
-                                  <Text
-                                    style={[
-                                      styles.childTableTitle,
-                                      dynamicStyles.childTableTitle,
-                                    ]}
-                                  >
-                                    {tbl.label} ({tbl.options})
-                                  </Text>
-                                  <TouchableOpacity
-                                    style={styles.childAddRowButton}
-                                    onPress={() => {
-                                      try {
-                                        const existing = Array.isArray(
-                                          values[tbl.fieldname],
-                                        )
-                                          ? values[tbl.fieldname]
-                                          : [];
-                                        const newRow = {};
-                                        tbl.fields.forEach((cf) => {
-                                          newRow[cf.fieldname] = "";
-                                        });
-                                        setFieldValue(tbl.fieldname, [
-                                          ...existing,
-                                          newRow,
-                                        ]);
-                                      } catch (e) {
-                                        console.error(e);
-                                      }
-                                    }}
-                                  >
-                                    <Text style={styles.childAddRowText}>
-                                      Add Row
-                                    </Text>
-                                  </TouchableOpacity>
-                                </View>
-                                {rows.length === 0 ? (
-                                  <Text
-                                    style={[
-                                      styles.noDataText,
-                                      dynamicStyles.noDataText,
-                                    ]}
-                                  >
-                                    No rows. Tap Add Row.
-                                  </Text>
+                                {f.fieldtype === "Link" ? (
+                                  <LinkField
+                                    field={f}
+                                    value={value}
+                                    onFieldChange={handleFieldChange}
+                                    doctype={doctype}
+                                    error={invalidFields[f.fieldname]}
+                                  />
                                 ) : (
-                                  rows.map((row, rowIndex) => (
-                                    <View
-                                      key={`${tbl.fieldname}-row-${rowIndex}`}
-                                      style={[
-                                        styles.childRowContainer,
-                                        dynamicStyles.childRowContainer,
-                                      ]}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.childRowTitle,
-                                          dynamicStyles.childRowTitle,
-                                        ]}
-                                      >
-                                        Row {rowIndex + 1}
-                                      </Text>
-                                      {tbl.fields.map((cf) => {
-                                        const childValue =
-                                          row[cf.fieldname] ?? "";
-                                        return (
-                                          <View
-                                            key={`${tbl.fieldname}-${cf.fieldname}-${rowIndex}`}
-                                            style={styles.formField}
-                                          >
-                                            {cf.fieldtype === "Link" ? (
-                                              <LinkField
-                                                field={cf}
-                                                value={childValue}
-                                                onFieldChange={(name, val) =>
-                                                  setFieldValue(
-                                                    `${tbl.fieldname}[${rowIndex}].${name}`,
-                                                    val,
-                                                  )
-                                                }
-                                                doctype={doctype}
-                                              />
-                                            ) : (
-                                              <GenericField
-                                                field={cf}
-                                                value={childValue}
-                                                onFieldChange={(name, val) =>
-                                                  setFieldValue(
-                                                    `${tbl.fieldname}[${rowIndex}].${name}`,
-                                                    val,
-                                                  )
-                                                }
-                                              />
-                                            )}
-                                          </View>
-                                        );
-                                      })}
-                                    </View>
-                                  ))
+                                  <GenericField
+                                    field={f}
+                                    value={value}
+                                    onFieldChange={handleFieldChange}
+                                    error={invalidFields[f.fieldname]}
+                                  />
                                 )}
                               </View>
                             );
-                          })}
-                        </View>
-                      )}
-                    </ScrollView>
-                    <View
-                      style={[styles.modalFooter, dynamicStyles.modalFooter]}
-                    >
-                      <TouchableOpacity
-                        style={[
-                          styles.footerButton,
-                          { backgroundColor: "#6c757d" },
-                        ]}
-                        onPress={onClose}
+                          })
+                        )}
+                        {childTables.length > 0 && (
+                          <View>
+                            {childTables.map((tbl) => {
+                              const rows = Array.isArray(values[tbl.fieldname])
+                                ? values[tbl.fieldname]
+                                : [];
+                              return (
+                                <View
+                                  key={tbl.fieldname}
+                                  style={styles.childTableSection}
+                                >
+                                  <View style={styles.childRowHeader}>
+                                    <Text
+                                      style={[
+                                        styles.childTableTitle,
+                                        dynamicStyles.childTableTitle,
+                                      ]}
+                                    >
+                                      {tbl.label} ({tbl.options})
+                                    </Text>
+                                    <TouchableOpacity
+                                      style={styles.childAddRowButton}
+                                      onPress={() => {
+                                        try {
+                                          const existing = Array.isArray(
+                                            values[tbl.fieldname],
+                                          )
+                                            ? values[tbl.fieldname]
+                                            : [];
+                                          const newRow = {};
+                                          tbl.fields.forEach((cf) => {
+                                            newRow[cf.fieldname] = "";
+                                          });
+                                          setFieldValue(tbl.fieldname, [
+                                            ...existing,
+                                            newRow,
+                                          ]);
+                                        } catch (e) {
+                                          console.error(e);
+                                        }
+                                      }}
+                                    >
+                                      <Text style={styles.childAddRowText}>
+                                        Add Row
+                                      </Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                  {rows.length === 0 ? (
+                                    <Text
+                                      style={[
+                                        styles.noDataText,
+                                        dynamicStyles.noDataText,
+                                      ]}
+                                    >
+                                      No rows. Tap Add Row.
+                                    </Text>
+                                  ) : (
+                                    rows.map((row, rowIndex) => (
+                                      <View
+                                        key={`${tbl.fieldname}-row-${rowIndex}`}
+                                        style={[
+                                          styles.childRowContainer,
+                                          dynamicStyles.childRowContainer,
+                                        ]}
+                                      >
+                                        <Text
+                                          style={[
+                                            styles.childRowTitle,
+                                            dynamicStyles.childRowTitle,
+                                          ]}
+                                        >
+                                          Row {rowIndex + 1}
+                                        </Text>
+                                        {tbl.fields.map((cf) => {
+                                          const childValue =
+                                            row[cf.fieldname] ?? "";
+                                          return (
+                                            <View
+                                              key={`${tbl.fieldname}-${cf.fieldname}-${rowIndex}`}
+                                              style={styles.formField}
+                                            >
+                                              {cf.fieldtype === "Link" ? (
+                                                <LinkField
+                                                  field={cf}
+                                                  value={childValue}
+                                                  onFieldChange={(name, val) =>
+                                                    setFieldValue(
+                                                      `${tbl.fieldname}[${rowIndex}].${name}`,
+                                                      val,
+                                                    )
+                                                  }
+                                                  doctype={doctype}
+                                                />
+                                              ) : (
+                                                <GenericField
+                                                  field={cf}
+                                                  value={childValue}
+                                                  onFieldChange={(name, val) =>
+                                                    setFieldValue(
+                                                      `${tbl.fieldname}[${rowIndex}].${name}`,
+                                                      val,
+                                                    )
+                                                  }
+                                                />
+                                              )}
+                                            </View>
+                                          );
+                                        })}
+                                      </View>
+                                    ))
+                                  )}
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                      </ScrollView>
+                      <View
+                        style={[styles.modalFooter, dynamicStyles.modalFooter]}
                       >
-                        <Text style={styles.footerButtonText}>Close</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.footerButton,
-                          { backgroundColor: colors.primary },
-                        ]}
-                        onPress={handleSubmit}
-                      >
-                        <Text style={styles.footerButtonText}>Submit</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                );
-              }}
-            </Formik>
-          )}
-        </KeyboardAvoidingView>
+                        <TouchableOpacity
+                          style={[
+                            styles.footerButton,
+                            { backgroundColor: "#6c757d" },
+                          ]}
+                          onPress={onClose}
+                        >
+                          <Text style={styles.footerButtonText}>Close</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.footerButton,
+                            { backgroundColor: colors.primary },
+                          ]}
+                          onPress={handleSubmit}
+                        >
+                          <Text style={styles.footerButtonText}>Submit</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  );
+                }}
+              </Formik>
+            )}
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
         <Toast />
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 };

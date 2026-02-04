@@ -25,7 +25,7 @@ import {
   callFrappeMethod,
   getGeolocation,
 } from "../utils/frappeApi";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { format, parseISO } from "date-fns";
 import Toast from "react-native-toast-message";
 import CustomLoader from "../Components/CustomLoader";
@@ -56,6 +56,7 @@ import { useTheme } from "../context/ThemeContext";
 
 export default function HomeScreen({ navigation, currentUserEmail }) {
   const { colors, theme } = useTheme();
+  const isFocused = useIsFocused();
 
   const dynamicStyles = React.useMemo(
     () => ({
@@ -118,7 +119,17 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
       setIsPunching(true);
       setPendingLogType(logType);
       try {
-        const { latitude, longitude } = await getGeolocation();
+        // Add a small timeout to prevent blocking if location takes too long
+        const locationPromise = getGeolocation();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Location timeout")), 10000),
+        );
+
+        const { latitude, longitude } = await Promise.race([
+          locationPromise,
+          timeoutPromise,
+        ]);
+
         const doc = {
           doctype: "Employee Checkin",
           employee: employeeProfile.name,
@@ -294,7 +305,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           setEmployeeProfile(profile);
         }
       } catch (err) {
-        console.error("Error fetching profile:", err);
+        // console.error("Error fetching profile:", err);
         if (isMountedRef.current) {
           setError(err.message || "Unknown error");
         }
@@ -309,17 +320,21 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
 
   const [checkins, setCheckins] = useState([]);
   const fetchCheckins = useCallback(async (forceRefresh = false) => {
-    const data = await getResourceList("Employee Checkin", {
-      filters: JSON.stringify([["time", "Timespan", "today"]]),
-      fields: JSON.stringify(["log_type", "time"]),
-      order_by: "time asc",
-      cache: true,
-      cacheTTL: 5 * 60 * 1000, // 5 minutes
-      forceRefresh: forceRefresh,
-    });
+    try {
+      const data = await getResourceList("Employee Checkin", {
+        filters: JSON.stringify([["time", "Timespan", "today"]]),
+        fields: JSON.stringify(["log_type", "time"]),
+        order_by: "time asc",
+        cache: true,
+        cacheTTL: 5 * 60 * 1000, // 5 minutes
+        forceRefresh: forceRefresh,
+      });
 
-    if (isMountedRef.current) {
-      setCheckins(data || []);
+      if (isMountedRef.current) {
+        setCheckins(data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching checkins:", error);
     }
   }, []);
 
@@ -359,7 +374,14 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   useEffect(() => {
     InteractionManager.runAfterInteractions(async () => {
       try {
-        const pos = await getGeolocation();
+        // Add timeout for geolocation to prevent hanging
+        const locationPromise = getGeolocation();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Location timeout")), 10000),
+        );
+
+        const pos = await Promise.race([locationPromise, timeoutPromise]);
+
         if (
           isMountedRef.current &&
           pos &&
@@ -450,6 +472,9 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
   }, [fetchProfile, fetchCheckins, fetchEvents, fetchHRSettings]);
 
   const mapComponent = React.useMemo(() => {
+    // Only render map when screen is focused to save memory
+    if (!isFocused) return null;
+
     if (
       coords &&
       typeof coords.latitude === "number" &&
@@ -507,7 +532,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
         Fetching location...
       </Text>
     );
-  }, [coords, dynamicStyles.sectionText]);
+  }, [coords, dynamicStyles.sectionText, isFocused]);
 
   if (loading) {
     return <CustomLoader visible={loading} />;
@@ -678,7 +703,7 @@ export default function HomeScreen({ navigation, currentUserEmail }) {
           <View style={styles.quickIconRow}>
             <TouchableOpacity
               style={styles.quickIconItem}
-              onPress={() => navigation.navigate("Expense Claim")}
+              onPress={() => navigation.getParent()?.navigate("Expense Claim")}
             >
               <View style={styles.quickIconCircle}>
                 <Wallet2 size={22} color="#fff" />

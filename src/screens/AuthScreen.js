@@ -13,21 +13,34 @@ const AuthScreen = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true);
     try {
       // Call the actual loginUser function from frappeApi.js
       await loginUser(email, password);
+
+      if (!isMountedRef.current) return;
+
       Toast.show({
         type: "success",
         text1: "Success",
         text2: "Logged in successfully",
       });
       setTimeout(() => {
-        onLoginSuccess(); // Notify App.js that login was successful
+        if (isMountedRef.current) {
+          onLoginSuccess(); // Notify App.js that login was successful
+        }
       }, 1000);
     } catch (err) {
+      if (!isMountedRef.current) return;
       Toast.show({
         type: "error",
         text1: "Login Failed",
@@ -36,7 +49,9 @@ const AuthScreen = ({ onLoginSuccess }) => {
           "Login failed. Please check credentials and Frappe URL/CORS.",
       });
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

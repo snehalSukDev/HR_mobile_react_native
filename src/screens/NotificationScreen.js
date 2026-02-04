@@ -47,7 +47,8 @@ function decodeEntities(s) {
 
 function parseInlineSegments(input) {
   if (!input) return [];
-  const keepTags = input.replace(/<(?!\/?(strong|b)\b)[^>]*>/gi, "");
+  const safeInput = String(input);
+  const keepTags = safeInput.replace(/<(?!\/?(strong|b)\b)[^>]*>/gi, "");
   const parts = keepTags.split(/(<\/?strong[^>]*>|<\/?b[^>]*>)/i);
   const segments = [];
   let bold = false;
@@ -166,11 +167,13 @@ const NotificationScreen = ({
         notification_log: notif?.name,
       });
 
-      setNotify((prev) =>
-        prev.map((n) =>
-          n?.name === notif?.name ? { ...n, read: isRead ? 0 : 1 } : n,
-        ),
-      );
+      if (isMountedRef.current) {
+        setNotify((prev) =>
+          prev.map((n) =>
+            n?.name === notif?.name ? { ...n, read: isRead ? 0 : 1 } : n,
+          ),
+        );
+      }
     } catch (e) {
       if (isMountedRef.current) {
         Toast.show({

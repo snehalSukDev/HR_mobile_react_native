@@ -15,6 +15,7 @@ import {
   Modal,
   Linking,
   Platform,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -172,7 +173,7 @@ const SalarySlipScreen = ({
           setSalarySlips(slips || []);
         }
       } catch (err) {
-        console.error("Error fetching salary slips:", err);
+        // console.error("Error fetching salary slips:", err);
         if (isMountedRef.current) {
           Toast.show({
             type: "error",
@@ -387,89 +388,119 @@ const SalarySlipScreen = ({
         animationType="slide"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}>
-          <View style={[styles.modalCard, dynamicStyles.modalCard]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                Salary Slip
-              </Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
-                <MaterialIcons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            {selectedSlip ? (
-              <View style={[styles.modalBody, dynamicStyles.modalBody]}>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                    ID
-                  </Text>
-                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                    {selectedSlip.name}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                    Employee
-                  </Text>
-                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                    {selectedSlip.employee_name}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                    Period
-                  </Text>
-                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                    {formatDate(selectedSlip.start_date)} -{" "}
-                    {formatDate(selectedSlip.end_date)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                    Gross Pay
-                  </Text>
-                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                    ₹ {parseFloat(selectedSlip.gross_pay || 0).toFixed(2)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                    Net Pay
-                  </Text>
-                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                    ₹ {parseFloat(selectedSlip.net_pay || 0).toFixed(2)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, dynamicStyles.detailLabel]}>
-                    Status
-                  </Text>
-                  <Text style={[styles.detailValue, dynamicStyles.detailValue]}>
-                    {selectedSlip.status}
-                  </Text>
-                </View>
-                <View style={styles.actionsRow}>
-                  <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={handleDownload}
-                    disabled={downloading}
-                  >
-                    <MaterialIcons
-                      name="remove-red-eye"
-                      size={18}
-                      color="#fff"
-                    />
-                    <Text style={styles.primaryButtonText}>
-                      {downloading ? "Loading..." : "View Slip"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+        <TouchableOpacity
+          style={[styles.modalBackdrop, dynamicStyles.modalBackdrop]}
+          activeOpacity={1}
+          onPress={() => setShowModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.modalCard, dynamicStyles.modalCard]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                  Salary Slip
+                </Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}>
+                  <MaterialIcons name="close" size={22} color={colors.text} />
+                </TouchableOpacity>
               </View>
-            ) : (
-              <View style={[styles.modalBody, dynamicStyles.modalBody]} />
-            )}
-          </View>
-        </View>
+              {selectedSlip ? (
+                <View style={[styles.modalBody, dynamicStyles.modalBody]}>
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      ID
+                    </Text>
+                    <Text
+                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    >
+                      {selectedSlip.name}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      Employee
+                    </Text>
+                    <Text
+                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    >
+                      {selectedSlip.employee_name}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      Period
+                    </Text>
+                    <Text
+                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    >
+                      {formatDate(selectedSlip.start_date)} -{" "}
+                      {formatDate(selectedSlip.end_date)}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      Gross Pay
+                    </Text>
+                    <Text
+                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    >
+                      ₹ {parseFloat(selectedSlip.gross_pay || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      Net Pay
+                    </Text>
+                    <Text
+                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    >
+                      ₹ {parseFloat(selectedSlip.net_pay || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[styles.detailLabel, dynamicStyles.detailLabel]}
+                    >
+                      Status
+                    </Text>
+                    <Text
+                      style={[styles.detailValue, dynamicStyles.detailValue]}
+                    >
+                      {selectedSlip.status}
+                    </Text>
+                  </View>
+                  <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                      style={styles.primaryButton}
+                      onPress={handleDownload}
+                      disabled={downloading}
+                    >
+                      <MaterialIcons
+                        name="remove-red-eye"
+                        size={18}
+                        color="#fff"
+                      />
+                      <Text style={styles.primaryButtonText}>
+                        {downloading ? "Loading..." : "View Slip"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.modalBody, dynamicStyles.modalBody]} />
+              )}
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
 
       {/* PDF/WebView Modal */}

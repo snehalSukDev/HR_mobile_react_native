@@ -1,6 +1,12 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { ThemeContext } from '../context/ThemeContext';
+import React from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
+import { ThemeContext } from "../context/ThemeContext";
 
 class ErrorBoundary extends React.Component {
   static contextType = ThemeContext;
@@ -16,7 +22,7 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     // You can also log the error to an error reporting service
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    // console.error("ErrorBoundary caught an error:", error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -27,24 +33,31 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       const { colors } = this.context;
-      
+
       // You can render any custom fallback UI
       return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View
+          style={[styles.container, { backgroundColor: colors.background }]}
+        >
           <ScrollView contentContainerStyle={styles.content}>
             <Text style={styles.title}>Something went wrong.</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               We're sorry, but an unexpected error occurred.
             </Text>
-            
-            <View style={[styles.errorBox, { backgroundColor: colors.error + '1A' }]}>
-                <Text style={[styles.errorText, { color: colors.error }]}>
-                    {this.state.error && this.state.error.toString()}
-                </Text>
+
+            <View
+              style={[
+                styles.errorBox,
+                { backgroundColor: colors.error + "1A" },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {this.state.error && this.state.error.toString()}
+              </Text>
             </View>
 
-            <TouchableOpacity 
-              style={[styles.button, { backgroundColor: colors.primary }]} 
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.primary }]}
               onPress={this.resetError}
             >
               <Text style={styles.buttonText}>Try Again</Text>
@@ -61,49 +74,49 @@ class ErrorBoundary extends React.Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 20,
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    color: '#d32f2f',
+    color: "#d32f2f",
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 20,
-    color: '#333',
+    color: "#333",
   },
   errorBox: {
-    backgroundColor: '#ffebee',
+    backgroundColor: "#ffebee",
     padding: 10,
     borderRadius: 5,
     marginBottom: 20,
-    width: '100%',
+    width: "100%",
   },
   errorText: {
-    color: '#b71c1c',
+    color: "#b71c1c",
     fontSize: 14,
   },
   button: {
-    backgroundColor: '#271085',
+    backgroundColor: "#271085",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 

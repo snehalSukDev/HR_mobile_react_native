@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   RefreshControl,
   FlatList,
+  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getResource, getResourceList } from "../utils/frappeApi";
@@ -305,7 +306,11 @@ const LeavesScreen = ({ currentUserEmail, currentEmployeeId, onLogout }) => {
     leaveApplications.forEach((app) => {
       const start = new Date(app.from_date);
       const end = new Date(app.to_date);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        if (isNaN(d.getTime())) continue;
         const key = d.toISOString().split("T")[0];
         const { bg, text } = getStatusColors("Leave");
         marks[key] = {
